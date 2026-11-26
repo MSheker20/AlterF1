@@ -1,14 +1,16 @@
-import type { ChampionSummary, ScoringSystem } from '../../api/types'
+import type { ChampionSummary, RulesSummary } from '../../api/types'
 import { strings } from '../../i18n/strings'
 import { formatPoints, getSurname } from '../../lib/format'
+import { formatRulesDescription } from '../../lib/scenario'
 
 interface ChampionHeadlineProps {
   season: number
   champion: ChampionSummary | null
   realChampion: ChampionSummary | null
   championChanged: boolean
-  activeSystem: ScoringSystem | undefined
+  rules: RulesSummary
   selectedSystemId: string
+  activeScenarioCount: number
 }
 
 export function ChampionHeadline({
@@ -16,8 +18,9 @@ export function ChampionHeadline({
   champion,
   realChampion,
   championChanged,
-  activeSystem,
+  rules,
   selectedSystemId,
+  activeScenarioCount,
 }: ChampionHeadlineProps) {
   const isChanged = championChanged && champion !== null && realChampion !== null
 
@@ -60,13 +63,16 @@ export function ChampionHeadline({
         <p className="mt-0.5 text-sm font-semibold leading-snug text-text tabular-nums sm:text-[15px]">
           {message}
         </p>
+        {activeScenarioCount > 0 && (
+          <p className="mt-0.5 text-xs text-muted tabular-nums">
+            {strings.headline.activeScenarioChanges(activeScenarioCount)}
+          </p>
+        )}
       </div>
 
-      {activeSystem && (
-        <p className="text-xs text-muted tabular-nums">
-          {strings.headline.systemRules(activeSystem.id, activeSystem.racePoints)}
-        </p>
-      )}
+      <p className="text-xs text-muted tabular-nums">
+        {formatRulesDescription(selectedSystemId, rules)}
+      </p>
     </div>
   )
 }

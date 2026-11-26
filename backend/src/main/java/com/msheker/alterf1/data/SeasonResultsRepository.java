@@ -1,8 +1,11 @@
 package com.msheker.alterf1.data;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -89,6 +92,20 @@ public class SeasonResultsRepository {
         return jdbc.sql("SELECT year, driver_id, driver_name, points FROM alterf1.season_champions ORDER BY year")
                 .query(SeasonChampion.class)
                 .list();
+    }
+
+    /** Fastest-lap ranking per round of a season: round → driver ids, fastest first. */
+    public Map<Integer, List<String>> findFastestLapRanking(int year) {
+        Map<Integer, List<String>> ranking = new TreeMap<>();
+        jdbc.sql("""
+                SELECT round, driver_id FROM alterf1.season_fastest_laps
+                WHERE year = :year ORDER BY round, rank, driver_id
+                """)
+                .param("year", year)
+                .query((rs, n) -> Map.entry(rs.getInt("round"), rs.getString("driver_id")))
+                .list()
+                .forEach(e -> ranking.computeIfAbsent(e.getKey(), r -> new ArrayList<>()).add(e.getValue()));
+        return ranking;
     }
 
     /** Every season that has results, oldest first. */

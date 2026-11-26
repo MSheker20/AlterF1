@@ -1,9 +1,12 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '../api/client'
 import { useSeasons, useStandings, useSystems } from '../api/standings'
-import type { StandingRow, SystemId } from '../api/types'
+import type { StandingRow, StandingsResponse, SystemId } from '../api/types'
 import { HealthBadge } from '../components/HealthBadge'
+import { ActiveScenarioChips } from '../components/scenario/ActiveScenarioChips'
+import { ScenarioPanel } from '../components/scenario/ScenarioPanel'
+import type { ScenarioInlineErrors } from '../components/scenario/ScenarioPanel'
 import { ChampionHeadline } from '../components/tower/ChampionHeadline'
 import { CompareSlope } from '../components/tower/CompareSlope'
 import { DetailSheet } from '../components/tower/DetailSheet'
@@ -12,14 +15,22 @@ import { SystemPicker } from '../components/tower/SystemPicker'
 import { YearSelect } from '../components/tower/YearSelect'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { strings } from '../i18n/strings'
+import {
+  countActive,
+  countActivePayload,
+  createDefaultCustomConfig,
+  createDefaultScenario,
+  customFromRules,
+  defaultSystemForYear,
+  isKnownSystemId,
+  parseScenario,
+  scenarioForYearChange,
+  scenarioToParams,
+} from '../lib/scenario'
+import type { Scenario } from '../lib/scenario'
 
 const DEFAULT_ROUTE = '/season/1988?system=1991'
-const KNOWN_SYSTEM_IDS: readonly SystemId[] = ['1950', '1961', '1991', '2003', '2010']
 const SKELETON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-
-function isKnownSystemId(value: string | undefined): value is SystemId {
-  return value !== undefined && (KNOWN_SYSTEM_IDS as readonly string[]).includes(value)
-}
 
 function parseYearParam(rawYear: string | undefined): number | null {
   if (!rawYear || !/^\d{4}$/.test(rawYear)) {
@@ -29,8 +40,50 @@ function parseYearParam(rawYear: string | undefined): number | null {
   return Number.isInteger(year) && year > 0 ? year : null
 }
 
-function defaultSystemForYear(year: number | null): SystemId {
-  return year !== null && year >= 2010 ? '1991' : '2010'
+function mapInlineScenarioError(
+  error: unknown,
+  panelOpen: boolean,
+  isCustomSystem: boolean,
+): { inlineErrors: ScenarioInlineErrors; handledInPanel: boolean } {
+  if (!panelOpen || !(error instanceof ApiError) || error.status !== 400) {
+    return { inlineErrors: {}, handledInPanel: false }
+  }
+
+  const detail = error.detail || error.title
+
+  switch (error.field) {
+    case 'custom':
+      return {
+        inlineErrors: isCustomSystem ? { customPoints: detail } : { general: detail },
+        handledInPanel: true,
+      }
+    case 'customFl':
+      return {
+        inlineErrors: isCustomSystem ? { customFl: detail } : { general: detail },
+        handledInPanel: true,
+      }
+    case 'customSprint':
+      return {
+        inlineErrors: isCustomSystem ? { customSprint: detail } : { general: detail },
+        handledInPanel: true,
+      }
+    case 'customBest':
+      return {
+        inlineErrors: isCustomSystem ? { customBest: detail } : { general: detail },
+        handledInPanel: true,
+      }
+    case 'exclude':
+      return { inlineErrors: { drivers: detail }, handledInPanel: true }
+    case 'skip':
+      return { inlineErrors: { races: detail }, handledInPanel: true }
+    case 'sprint':
+    case 'fl':
+      return { inlineErrors: { bonuses: detail }, handledInPanel: true }
+    case 'preset':
+      return { inlineErrors: { preset: detail }, handledInPanel: true }
+    default:
+      return { inlineErrors: { general: detail }, handledInPanel: true }
+  }
 }
 
 export function SeasonPage() {
@@ -40,56 +93,119 @@ export function SeasonPage() {
   const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   const parsedYear = parseYearParam(rawYear)
-  const systemParam = searchParams.get('system')?.trim()
-  const selectedSystem =
-    systemParam && systemParam.length > 0 ? systemParam : defaultSystemForYear(parsedYear)
+  const scenario = useMemo(
+    () => parseScenario(searchParams, defaultSystemForYear(parsedYear)),
+    [searchParams, parsedYear],
+  )
+  const activeScenarioCount = useMemo(() => countActive(scenario), [scenario])
 
   const seasonsQuery = useSeasons()
   const systemsQuery = useSystems()
-  const standingsQuery = useStandings(parsedYear, selectedSystem)
+  const standingsQuery = useStandings(parsedYear, scenario)
 
   const [mobileView, setMobileView] = useState<'tower' | 'compare'>('tower')
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
   const [sheetDriverId, setSheetDriverId] = useState<string | null>(null)
   const [sheetTrigger, setSheetTrigger] = useState<HTMLButtonElement | null>(null)
+  const [scenarioOpen, setScenarioOpen] = useState(false)
+  const scenarioButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  // A new season closes any open detail (state adjusted during render, no effect).
+  // Keep last successful standings for the same season visible during 400 errors.
+  const [lastStandings, setLastStandings] = useState<StandingsResponse | null>(null)
+  if (
+    standingsQuery.data &&
+    standingsQuery.data.season === parsedYear &&
+    standingsQuery.data !== lastStandings
+  ) {
+    setLastStandings(standingsQuery.data)
+  }
+  if (lastStandings !== null && lastStandings.season !== parsedYear) {
+    setLastStandings(null)
+  }
+
+  // A new season closes any open driver detail and scenario panel (state adjusted during render, no effect).
   const [shownYear, setShownYear] = useState(parsedYear)
   if (parsedYear !== shownYear) {
     setShownYear(parsedYear)
     setExpandedDriverId(null)
     setSheetDriverId(null)
     setSheetTrigger(null)
+    setScenarioOpen(false)
   }
   // The bottom sheet is mobile-only: switching to desktop closes it.
   if (isDesktop && sheetDriverId !== null) {
     setSheetDriverId(null)
   }
 
-  const handleSystemChange = useCallback(
-    (nextSystem: SystemId) => {
+  const { inlineErrors, handledInPanel } = useMemo(
+    () =>
+      mapInlineScenarioError(
+        standingsQuery.isError ? standingsQuery.error : null,
+        scenarioOpen,
+        scenario.system === 'custom',
+      ),
+    [standingsQuery.isError, standingsQuery.error, scenarioOpen, scenario.system],
+  )
+
+  const showPageError = standingsQuery.isError && !handledInPanel
+  const displayStandings = standingsQuery.isError
+    ? handledInPanel
+      ? lastStandings
+      : null
+    : (standingsQuery.data ?? null)
+
+  const updateScenario = useCallback(
+    (updater: (prev: Scenario) => Scenario) => {
       setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev)
-          next.set('system', nextSystem)
-          return next
+        (prevParams) => {
+          const prevScenario = parseScenario(prevParams, defaultSystemForYear(parsedYear))
+          return scenarioToParams(updater(prevScenario))
         },
         { replace: true },
       )
     },
-    [setSearchParams],
+    [parsedYear, setSearchParams],
+  )
+
+  const handleSystemChange = useCallback(
+    (nextSystem: SystemId) => {
+      if (nextSystem === 'custom') {
+        updateScenario((prev) => ({
+          ...prev,
+          system: 'custom',
+          custom:
+            prev.custom ??
+            (displayStandings
+              ? customFromRules(displayStandings.rules)
+              : createDefaultCustomConfig()),
+        }))
+        setScenarioOpen(true)
+        return
+      }
+
+      updateScenario((prev) => ({
+        ...prev,
+        system: nextSystem,
+        custom: null,
+      }))
+    },
+    [displayStandings, updateScenario],
   )
 
   const handleYearChange = useCallback(
     (nextYear: number) => {
-      const currentSystem = searchParams.get('system')?.trim()
-      const nextSystem = isKnownSystemId(currentSystem)
-        ? currentSystem
-        : defaultSystemForYear(nextYear)
-      navigate(`/season/${nextYear}?system=${encodeURIComponent(nextSystem)}`)
+      setScenarioOpen(false)
+      const rawSystem = searchParams.get('system')?.trim()
+      const hasExplicitSystem = isKnownSystemId(rawSystem)
+      const nextScenario = scenarioForYearChange(scenario, hasExplicitSystem, nextYear)
+      navigate(`/season/${nextYear}?${scenarioToParams(nextScenario).toString()}`)
     },
-    [navigate, searchParams],
+    [navigate, scenario, searchParams],
   )
+
+  const handleResetScenario = useCallback(() => {
+    updateScenario(() => createDefaultScenario(defaultSystemForYear(parsedYear)))
+  }, [parsedYear, updateScenario])
 
   const handleSelectRow = useCallback(
     (row: StandingRow, triggerEl: HTMLButtonElement) => {
@@ -107,15 +223,15 @@ export function SeasonPage() {
     setSheetDriverId(null)
   }, [])
 
+  const handleCloseScenario = useCallback(() => {
+    setScenarioOpen(false)
+  }, [])
+
   const seasons = seasonsQuery.data ?? []
   const systems = systemsQuery.data ?? []
-  const standingsData = standingsQuery.data
-  const standingsSystemObj = standingsData
-    ? systems.find((s) => s.id === standingsData.system)
-    : undefined
   const sheetRow =
-    sheetDriverId !== null && standingsData
-      ? (standingsData.standings.find((row) => row.driverId === sheetDriverId) ?? null)
+    sheetDriverId !== null && displayStandings
+      ? (displayStandings.standings.find((row) => row.driverId === sheetDriverId) ?? null)
       : null
 
   return (
@@ -138,11 +254,35 @@ export function SeasonPage() {
             />
             <SystemPicker
               systems={systems}
-              selectedSystem={selectedSystem}
-              realSystem={standingsData?.realSystem ?? null}
+              selectedSystem={scenario.system}
+              realSystem={displayStandings?.realSystem ?? null}
               onChange={handleSystemChange}
               disabled={parsedYear === null}
             />
+            <button
+              ref={scenarioButtonRef}
+              type="button"
+              disabled={parsedYear === null}
+              aria-expanded={scenarioOpen}
+              aria-haspopup="dialog"
+              aria-label={strings.scenario.buttonAriaWithCount(activeScenarioCount)}
+              onClick={() => setScenarioOpen((prev) => !prev)}
+              className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors sm:text-[13px] disabled:cursor-not-allowed disabled:opacity-50 ${
+                scenarioOpen || activeScenarioCount > 0
+                  ? 'border-[#3a4250] bg-surface-2 text-text'
+                  : 'border-border bg-surface text-text hover:border-[#363d48]'
+              }`}
+            >
+              <span>{strings.scenario.buttonLabel}</span>
+              {activeScenarioCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none tabular-nums text-white"
+                >
+                  {activeScenarioCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
       </header>
@@ -168,37 +308,53 @@ export function SeasonPage() {
                 </h1>
               </div>
 
-              {standingsQuery.isError ? null : standingsData ? (
+              {displayStandings ? (
                 <ChampionHeadline
-                  season={standingsData.season}
-                  champion={standingsData.champion}
-                  realChampion={standingsData.realChampion}
-                  championChanged={standingsData.championChanged}
-                  activeSystem={standingsSystemObj}
-                  selectedSystemId={standingsData.system}
+                  season={displayStandings.season}
+                  champion={displayStandings.champion}
+                  realChampion={displayStandings.realChampion}
+                  championChanged={displayStandings.championChanged}
+                  rules={displayStandings.rules}
+                  selectedSystemId={displayStandings.system}
+                  activeScenarioCount={countActivePayload(
+                    displayStandings.scenario,
+                    displayStandings.system,
+                  )}
                 />
-              ) : (
+              ) : standingsQuery.isError ? null : (
                 <HeadlineSkeleton />
               )}
+
+              <ActiveScenarioChips
+                scenario={scenario}
+                entrants={displayStandings?.entrants ?? []}
+                races={displayStandings?.races ?? []}
+                season={parsedYear}
+                onChangeScenario={updateScenario}
+              />
             </div>
 
-            {standingsQuery.isError ? (
+            {showPageError && (
               <StandingsErrorState
                 error={standingsQuery.error}
                 onRetry={() => {
                   void standingsQuery.refetch()
                 }}
               />
-            ) : standingsQuery.isPending || !standingsData ? (
-              <StandingsSkeleton isDesktop={isDesktop} />
+            )}
+
+            {!displayStandings ? (
+              standingsQuery.isError ? null : (
+                <StandingsSkeleton isDesktop={isDesktop} />
+              )
             ) : isDesktop ? (
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(340px,430px)] items-start gap-6">
                 <StandingsTower
-                  key={standingsData.season}
-                  standings={standingsData.standings}
-                  races={standingsData.races}
-                  season={standingsData.season}
-                  systemId={standingsData.system}
+                  key={displayStandings.season}
+                  standings={displayStandings.standings}
+                  races={displayStandings.races}
+                  season={displayStandings.season}
+                  systemId={displayStandings.system}
                   isDesktop
                   expandedDriverId={expandedDriverId}
                   selectedDriverId={null}
@@ -207,10 +363,10 @@ export function SeasonPage() {
 
                 <div className="sticky top-20">
                   <CompareSlope
-                    key={standingsData.season}
-                    standings={standingsData.standings}
-                    systemId={standingsData.system}
-                    realSystem={standingsData.realSystem}
+                    key={displayStandings.season}
+                    standings={displayStandings.standings}
+                    systemId={displayStandings.system}
+                    realSystem={displayStandings.realSystem}
                   />
                 </div>
               </div>
@@ -250,11 +406,11 @@ export function SeasonPage() {
                 {mobileView === 'tower' ? (
                   <>
                     <StandingsTower
-                      key={standingsData.season}
-                      standings={standingsData.standings}
-                      races={standingsData.races}
-                      season={standingsData.season}
-                      systemId={standingsData.system}
+                      key={displayStandings.season}
+                      standings={displayStandings.standings}
+                      races={displayStandings.races}
+                      season={displayStandings.season}
+                      systemId={displayStandings.system}
                       isDesktop={false}
                       expandedDriverId={null}
                       selectedDriverId={sheetDriverId}
@@ -262,23 +418,39 @@ export function SeasonPage() {
                     />
                     <DetailSheet
                       row={sheetRow}
-                      races={standingsData.races}
-                      season={standingsData.season}
-                      systemId={standingsData.system}
+                      races={displayStandings.races}
+                      season={displayStandings.season}
+                      systemId={displayStandings.system}
                       restoreFocusTo={sheetTrigger}
                       onClose={handleCloseSheet}
                     />
                   </>
                 ) : (
                   <CompareSlope
-                    key={standingsData.season}
-                    standings={standingsData.standings}
-                    systemId={standingsData.system}
-                    realSystem={standingsData.realSystem}
+                    key={displayStandings.season}
+                    standings={displayStandings.standings}
+                    systemId={displayStandings.system}
+                    realSystem={displayStandings.realSystem}
                   />
                 )}
               </div>
             )}
+
+            <ScenarioPanel
+              key={parsedYear}
+              open={scenarioOpen}
+              isDesktop={isDesktop}
+              season={parsedYear}
+              scenario={scenario}
+              entrants={displayStandings?.entrants ?? []}
+              races={displayStandings?.races ?? []}
+              rules={displayStandings?.rules ?? null}
+              restoreFocusRef={scenarioButtonRef}
+              inlineErrors={inlineErrors}
+              onChangeScenario={updateScenario}
+              onReset={handleResetScenario}
+              onClose={handleCloseScenario}
+            />
           </>
         )}
       </main>

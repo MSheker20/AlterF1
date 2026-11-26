@@ -44,6 +44,9 @@ const TONE_GP_CLASSES: Record<ResultTone, string> = {
   empty: 'text-[#5b6370]',
 }
 
+const SKIPPED_CELL_CLASS =
+  'bg-bg/40 border-dashed border-border text-muted/60 font-normal opacity-45 line-through'
+
 export function RaceResultsGrid({
   races,
   results,
@@ -59,16 +62,21 @@ export function RaceResultsGrid({
         {races.map((race, index) => {
           const result = results[index] ?? ''
           const tone = classifyResult(result)
+          const cellClass = race.skipped ? SKIPPED_CELL_CLASS : TONE_CELL_CLASSES[tone]
+          const gpClass = race.skipped ? 'text-muted/60' : TONE_GP_CLASSES[tone]
+          const title = race.skipped
+            ? `${race.round}. ${race.code} (${race.date}) — ${strings.detail.raceSkippedSuffix}`
+            : `${race.round}. ${race.code} (${race.date})`
 
           return (
             <div
               key={race.round}
-              title={`${race.round}. ${race.code} (${race.date})`}
-              className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[7px] border px-1 py-1.5 ${TONE_CELL_CLASSES[tone]}`}
+              title={title}
+              className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[7px] border px-1 py-1.5 ${cellClass}`}
             >
               <span
                 aria-hidden="true"
-                className={`text-[10px] font-bold uppercase leading-none tracking-[0.06em] ${TONE_GP_CLASSES[tone]}`}
+                className={`text-[10px] font-bold uppercase leading-none tracking-[0.06em] ${gpClass}`}
               >
                 {race.code}
               </span>
@@ -76,7 +84,7 @@ export function RaceResultsGrid({
                 {result === '' ? '—' : result}
               </span>
               <span className="sr-only">
-                {strings.detail.raceResultAria(race.round, race.code, result)}
+                {strings.detail.raceResultAria(race.round, race.code, result, race.skipped)}
               </span>
             </div>
           )
@@ -97,8 +105,14 @@ export function RaceResultsGrid({
               <th
                 key={race.round}
                 scope="col"
-                title={`${race.round}. ${race.code} (${race.date})`}
-                className="min-w-[38px] border-b border-border px-1 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted"
+                title={
+                  race.skipped
+                    ? `${race.round}. ${race.code} (${race.date}) — ${strings.detail.raceSkippedSuffix}`
+                    : `${race.round}. ${race.code} (${race.date})`
+                }
+                className={`min-w-[38px] border-b border-border px-1 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted ${
+                  race.skipped ? 'opacity-45 line-through' : ''
+                }`}
               >
                 {race.code}
               </th>
@@ -110,17 +124,18 @@ export function RaceResultsGrid({
             {races.map((race, index) => {
               const result = results[index] ?? ''
               const tone = classifyResult(result)
+              const cellClass = race.skipped ? SKIPPED_CELL_CLASS : TONE_CELL_CLASSES[tone]
 
               return (
                 <td key={race.round} className="px-[3px] py-2">
                   <span
                     aria-hidden="true"
-                    className={`inline-flex h-6 w-8 items-center justify-center rounded-[5px] border text-[11px] tabular-nums ${TONE_CELL_CLASSES[tone]}`}
+                    className={`inline-flex h-6 w-8 items-center justify-center rounded-[5px] border text-[11px] tabular-nums ${cellClass}`}
                   >
                     {result === '' ? '—' : result}
                   </span>
                   <span className="sr-only">
-                    {strings.detail.raceResultAria(race.round, race.code, result)}
+                    {strings.detail.raceResultAria(race.round, race.code, result, race.skipped)}
                   </span>
                 </td>
               )

@@ -23,6 +23,10 @@ public class ApiExceptions extends ResponseEntityExceptionHandler {
     ProblemDetail badRequest(BadRequestException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
         problem.setTitle("Bad request");
+        if (e.field() != null) {
+            // The query parameter at fault, so the UI can show the error next to its control.
+            problem.setProperty("field", e.field());
+        }
         return problem;
     }
 
@@ -44,8 +48,20 @@ public class ApiExceptions extends ResponseEntityExceptionHandler {
 }
 
 class BadRequestException extends RuntimeException {
+    private final String field;
+
     BadRequestException(String message) {
+        this(null, message);
+    }
+
+    /** @param field the query parameter at fault, e.g. "exclude" or "custom" */
+    BadRequestException(String field, String message) {
         super(message);
+        this.field = field;
+    }
+
+    String field() {
+        return field;
     }
 }
 

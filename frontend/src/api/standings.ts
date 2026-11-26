@@ -1,4 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
+import { scenarioToParams } from '../lib/scenario'
+import type { Scenario } from '../lib/scenario'
 import { getJson } from './client'
 import type { ScoringSystem, SeasonSummary, StandingsResponse } from './types'
 
@@ -12,14 +14,14 @@ export function fetchSystems(signal?: AbortSignal): Promise<ScoringSystem[]> {
 
 export function fetchStandings(
   year: number,
-  system: string,
+  scenario: Scenario,
   signal?: AbortSignal,
 ): Promise<StandingsResponse> {
-  const params = new URLSearchParams({
-    system,
-    preset: 'historical',
-  })
-  return getJson<StandingsResponse>(`/api/v1/seasons/${year}/standings?${params.toString()}`, signal)
+  const params = scenarioToParams(scenario)
+  return getJson<StandingsResponse>(
+    `/api/v1/seasons/${year}/standings?${params.toString()}`,
+    signal,
+  )
 }
 
 export function useSeasons() {
@@ -38,10 +40,12 @@ export function useSystems() {
   })
 }
 
-export function useStandings(year: number | null, system: string) {
+export function useStandings(year: number | null, scenario: Scenario) {
+  const canonicalParams = scenarioToParams(scenario).toString()
+
   return useQuery({
-    queryKey: ['standings', year, system] as const,
-    queryFn: ({ signal }) => fetchStandings(year as number, system, signal),
+    queryKey: ['standings', year, canonicalParams] as const,
+    queryFn: ({ signal }) => fetchStandings(year as number, scenario, signal),
     enabled: year !== null,
     staleTime: Infinity,
     placeholderData: (previousData) =>

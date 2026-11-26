@@ -34,12 +34,24 @@ public class StandingsController {
         return service.systems();
     }
 
-    /** The drivers' championship of a season under a points system. */
+    /**
+     * The drivers' championship of a season under a points system and an optional scenario.
+     * Readable parameters make shareable URLs (PLAN.md §2.2).
+     */
     @GetMapping("/seasons/{year}/standings")
     public StandingsResponse standings(
             @PathVariable int year,
             @RequestParam String system,
-            @RequestParam(defaultValue = "historical") String preset) {
-        return service.standings(year, system, preset);
+            @RequestParam(defaultValue = "historical") String preset,
+            @RequestParam(required = false) String exclude,
+            @RequestParam(required = false) String skip,
+            @RequestParam(required = false) String sprint,
+            @RequestParam(name = "fl", required = false) String fastestLap,
+            @RequestParam(required = false) String custom,
+            @RequestParam(name = "customFl", required = false) String customFastestLap,
+            @RequestParam(required = false) String customSprint,
+            @RequestParam(required = false) Integer customBest) {
+        return service.standings(year, new StandingsQuery(system, preset, exclude, skip, sprint, fastestLap,
+                custom, customFastestLap, customSprint, customBest));
     }
 }

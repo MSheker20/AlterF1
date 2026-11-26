@@ -1,5 +1,6 @@
-import type { ScoringSystem, SystemId } from '../../api/types'
+import type { BuiltinSystemId, ScoringSystem, SystemId } from '../../api/types'
 import { strings } from '../../i18n/strings'
+import { BUILTIN_SYSTEM_IDS } from '../../lib/scenario'
 
 interface SystemPickerProps {
   systems: readonly ScoringSystem[]
@@ -9,8 +10,6 @@ interface SystemPickerProps {
   disabled?: boolean
 }
 
-const FALLBACK_SYSTEM_IDS: readonly SystemId[] = ['1950', '1961', '1991', '2003', '2010']
-
 export function SystemPicker({
   systems,
   selectedSystem,
@@ -18,18 +17,20 @@ export function SystemPicker({
   onChange,
   disabled = false,
 }: SystemPickerProps) {
-  const systemIds: readonly SystemId[] =
-    systems.length > 0 ? systems.map((s) => s.id) : FALLBACK_SYSTEM_IDS
+  const builtinIds: readonly BuiltinSystemId[] =
+    systems.length > 0 ? systems.map((s) => s.id) : BUILTIN_SYSTEM_IDS
+  const systemIds: readonly SystemId[] = [...builtinIds, 'custom']
 
   return (
     <div
       role="group"
       aria-label={strings.controls.scoringSystemLabel}
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface p-[3px]"
+      className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-surface p-[3px]"
     >
       {systemIds.map((systemId) => {
         const isActive = systemId === selectedSystem
         const isReal = realSystem === systemId
+        const label = systemId === 'custom' ? strings.controls.customSystemLabel : systemId
 
         return (
           <button
@@ -49,7 +50,7 @@ export function SystemPicker({
                 : 'text-muted hover:text-text'
             } disabled:cursor-not-allowed disabled:opacity-50`}
           >
-            <span>{systemId}</span>
+            <span>{label}</span>
             {isReal && (
               <>
                 <span

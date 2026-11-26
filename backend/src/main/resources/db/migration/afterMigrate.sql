@@ -11,6 +11,7 @@ DROP VIEW IF EXISTS alterf1.season_race_results;
 DROP VIEW IF EXISTS alterf1.season_champions;
 DROP VIEW IF EXISTS alterf1.season_driver_standings;
 DROP VIEW IF EXISTS alterf1.seasons;
+DROP VIEW IF EXISTS alterf1.season_fastest_laps;
 
 -- One row per driver per points-paying session (Grand Prix or sprint) of a season.
 -- This is the only input the standings engine needs; one query per season.
@@ -84,5 +85,13 @@ WHERE EXISTS (
     SELECT 1 FROM f1db.race r JOIN f1db.race_data d ON d.race_id = r.id
     WHERE r.year = s.year AND d.type = 'RACE_RESULT');
 
+-- Fastest-lap ranking of each Grand Prix (1 = fastest). When a scenario removes the driver
+-- who set the fastest lap, the bonus passes to the next fastest (PLAN.md §2.2).
+CREATE VIEW alterf1.season_fastest_laps WITH (security_invoker = true) AS
+SELECT r.year, r.round, d.position_number AS rank, d.driver_id
+FROM f1db.race_data d
+JOIN f1db.race r ON r.id = d.race_id
+WHERE d.type = 'FASTEST_LAP' AND d.position_number IS NOT NULL;
+
 GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions, alterf1.season_driver_standings,
-    alterf1.seasons TO ${roUser};
+    alterf1.seasons, alterf1.season_fastest_laps TO ${roUser};

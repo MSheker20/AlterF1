@@ -6,8 +6,15 @@ import type { RaceSummary, StandingRow } from '../../api/types'
 import { StandingsTower } from './StandingsTower'
 
 const RACES: RaceSummary[] = [
-  { round: 1, grandPrixId: 'brazil', code: 'BRA', date: '1988-04-03' },
-  { round: 2, grandPrixId: 'san-marino', code: 'SMR', date: '1988-05-01' },
+  { round: 1, grandPrixId: 'brazil', code: 'BRA', date: '1988-04-03', sprint: false, skipped: false },
+  {
+    round: 2,
+    grandPrixId: 'san-marino',
+    code: 'SMR',
+    date: '1988-05-01',
+    sprint: false,
+    skipped: false,
+  },
 ]
 
 function makeRow(position: number, overrides: Partial<StandingRow> = {}): StandingRow {

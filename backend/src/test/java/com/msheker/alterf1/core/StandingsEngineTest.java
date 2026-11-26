@@ -235,6 +235,86 @@ class StandingsEngineTest {
     }
 
     @Test
+    void removingTheWinnerMovesEveryoneBehindUp() {
+        List<SessionResult> season = TestSeasons.season(2021).race(1, "a", "b", "c").build();
+        Scenario withoutA = new Scenario(java.util.Set.of("a"), java.util.Set.of(), java.util.Map.of());
+
+        assertThat(engine.compute(season, ScoringSystem.S2010, ScoringOptions.HISTORICAL, withoutA))
+                .extracting(DriverStanding::driverId, DriverStanding::points, DriverStanding::wins)
+                .containsExactly(tuple("b", bd("25.00"), 1), tuple("c", bd("18.00"), 0));
+    }
+
+    @Test
+    void skippingARaceRemovesItsPoints() {
+        List<SessionResult> season = TestSeasons.season(2021)
+                .race(1, "a", "b")
+                .race(2, "b", "a")
+                .build();
+        Scenario withoutRound2 = new Scenario(java.util.Set.of(), java.util.Set.of(2), java.util.Map.of());
+
+        assertThat(engine.compute(season, ScoringSystem.S2010, ScoringOptions.HISTORICAL, withoutRound2))
+                .extracting(DriverStanding::driverId, DriverStanding::points)
+                .containsExactly(tuple("a", bd("25.00")), tuple("b", bd("18.00")));
+    }
+
+    @Test
+    void aRemovedDriversFastestLapPassesToTheNextFastest() {
+        List<SessionResult> season = TestSeasons.season(2021)
+                .race(1, s -> s.order("a", "b", "c").fastestLap("a"))
+                .build();
+        // Fastest-lap ranking of round 1: a, then c, then b.
+        Scenario withoutA = new Scenario(java.util.Set.of("a"), java.util.Set.of(),
+                java.util.Map.of(1, List.of("a", "c", "b")));
+
+        assertThat(engine.compute(season, ScoringSystem.S2010, ScoringOptions.HISTORICAL, withoutA))
+                .extracting(DriverStanding::driverId, DriverStanding::points)
+                .containsExactly(tuple("b", bd("25.00")), tuple("c", bd("19.00")));
+    }
+
+    @Test
+    void removingOneOfTwoSharedFastestLapHoldersGivesTheOtherTheWholeBonus() {
+        // 1954: the fastest-lap point was split between drivers who set the same time.
+        List<SessionResult> season = TestSeasons.season(1954)
+                .race(1, s -> s.order("a", "b", "c").fastestLap("a").fastestLap("b"))
+                .build();
+        Scenario withoutB = new Scenario(java.util.Set.of("b"), java.util.Set.of(), java.util.Map.of());
+
+        assertThat(engine.compute(season, ScoringSystem.S1950, ScoringOptions.HISTORICAL, withoutB))
+                .filteredOn(st -> st.driverId().equals("a"))
+                .extracting(DriverStanding::points)
+                .containsExactly(bd("9.00"));
+    }
+
+    @Test
+    void aPassedOnFastestLapSkipsAnIneligibleDriver() {
+        // 1995: "c" finished third but scored nothing (ineligible); the 1950 system rewards any fastest lap.
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, s -> s.order("a", "b").finish("c", e -> e.actualPoints("0")).fastestLap("a"))
+                .build();
+        Scenario withoutA = new Scenario(java.util.Set.of("a"), java.util.Set.of(),
+                java.util.Map.of(1, List.of("a", "c", "b")));
+
+        assertThat(engine.compute(season, ScoringSystem.S1950, ScoringOptions.HISTORICAL, withoutA))
+                .extracting(DriverStanding::driverId, DriverStanding::points)
+                .containsExactly(tuple("b", bd("9.00")), tuple("c", bd("0.00")));
+    }
+
+    @Test
+    void customSystemAppliesItsOwnTableAndBestResults() {
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, "a", "b")
+                .race(2, "a", "b")
+                .race(3, "b", "a")
+                .build();
+        ScoringRules custom = new CustomSystem(ScoringRules.points(5, 1), false, CustomSystem.Sprint.NONE, 2)
+                .rules();
+
+        assertThat(engine.compute(season, custom, ScoringOptions.HISTORICAL))
+                .extracting(DriverStanding::driverId, DriverStanding::points, DriverStanding::grossPoints)
+                .containsExactly(tuple("a", bd("10.00"), bd("11.00")), tuple("b", bd("6.00"), bd("7.00")));
+    }
+
+    @Test
     void emptyInputReturnsEmptyList() {
         assertThat(engine.compute(List.of(), ScoringSystem.S2010, ScoringOptions.HISTORICAL)).isEmpty();
         assertThat(engine.compute(List.of(), ScoringSystem.S2010.rulesFor(2024, 24), ScoringOptions.HISTORICAL))

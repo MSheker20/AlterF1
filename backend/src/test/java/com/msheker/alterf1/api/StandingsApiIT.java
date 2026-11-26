@@ -2,6 +2,9 @@ package com.msheker.alterf1.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -83,6 +86,102 @@ class StandingsApiIT extends AbstractF1dbIntegrationTest {
 
         response.extractingPath("$[0].year").isEqualTo(1950);
         response.extractingPath("$[0].champion.driverId").isEqualTo("nino-farina");
+    }
+
+    @Test
+    void removingVerstappenFrom2023ChangesTheChampion() {
+        var response = assertThat(mvc.get().uri("/api/v1/seasons/2023/standings?system=2010&exclude=max-verstappen"))
+                .hasStatusOk()
+                .bodyJson();
+
+        response.extractingPath("$.championChanged").isEqualTo(true);
+        response.extractingPath("$.scenario.excludedDrivers[0]").isEqualTo("max-verstappen");
+        response.extractingPath("$.standings[*].driverId").asArray().doesNotContain("max-verstappen");
+        response.extractingPath("$.entrants[0].driverId").isEqualTo("max-verstappen");
+        response.extractingPath("$.entrants[0].excluded").isEqualTo(true);
+    }
+
+    @Test
+    void aCustomSystemWithThe1991TableMatchesThe1991System() {
+        var response = assertThat(mvc.get().uri("/api/v1/seasons/1988/standings?system=custom&custom=10,6,4,3,2,1"))
+                .hasStatusOk()
+                .bodyJson();
+
+        response.extractingPath("$.system").isEqualTo("custom");
+        response.extractingPath("$.champion.driverId").isEqualTo("alain-prost");
+        response.extractingPath("$.champion.points").isEqualTo(112.0);
+        response.extractingPath("$.rules.bestResults.type").isEqualTo("all");
+        response.extractingPath("$.scenario.custom.racePoints.length()").isEqualTo(6);
+    }
+
+    @Test
+    void echoesTheRealRulesAndSkippedRaces() {
+        var response = assertThat(mvc.get().uri("/api/v1/seasons/1988/standings?system=1961&skip=1"))
+                .hasStatusOk()
+                .bodyJson();
+
+        response.extractingPath("$.rules.bestResults.type").isEqualTo("season");
+        response.extractingPath("$.rules.bestResults.count").isEqualTo(11);
+        response.extractingPath("$.races[0].skipped").isEqualTo(true);
+        response.extractingPath("$.races[1].skipped").isEqualTo(false);
+        response.extractingPath("$.scenario.skippedRounds[0]").isEqualTo(1);
+    }
+
+    @Test
+    void invalidScenariosAreBadRequests() {
+        for (String query : List.of(
+                "system=2010&exclude=nobody",
+                "system=2010&skip=99",
+                "system=1961&skip=" + String.join(",", java.util.stream.IntStream.rangeClosed(1, 16)
+                        .mapToObj(String::valueOf).toList()),
+                "system=custom&custom=25,abc",
+                "system=custom",
+                "system=custom&custom=25,18&customBest=0",
+                "system=2010&sprint=maybe")) {
+            assertThat(mvc.get().uri("/api/v1/seasons/1988/standings?" + query))
+                    .as(query)
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .hasContentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON);
+        }
+    }
+
+    @Test
+    void raceResultsAreRenumberedLikeThePoints() {
+        // Bahrain 2023: Verstappen won, Pérez was second. Without Verstappen, Pérez wins it.
+        var response = assertThat(mvc.get().uri("/api/v1/seasons/2023/standings?system=2010&exclude=max-verstappen"))
+                .hasStatusOk()
+                .bodyJson();
+
+        response.extractingPath("$.standings[0].driverId").isEqualTo("sergio-perez");
+        response.extractingPath("$.standings[0].results[0]").isEqualTo("1");
+    }
+
+    @Test
+    void customPointsMustBePlainNumbersInEveryPosition() {
+        for (String custom : List.of("1,0e-10000000", "25,,18", ",25", "25,-1", "25,1001", "25,1.234")) {
+            assertThat(mvc.get().uri("/api/v1/seasons/1988/standings?system=custom&custom=" + custom))
+                    .as(custom)
+                    .hasStatus(HttpStatus.BAD_REQUEST)
+                    .bodyJson()
+                    .extractingPath("$.field").isEqualTo("custom");
+        }
+    }
+
+    @Test
+    void badRequestsNameTheParameterAtFault() {
+        Map<String, String> expected = Map.of(
+                "system=2010&exclude=nobody", "exclude",
+                "system=2010&skip=99", "skip",
+                "system=custom&custom=25,abc", "custom",
+                "system=custom&custom=25,18&customBest=0", "customBest",
+                "system=2010&fl=maybe", "fl",
+                "system=2010&preset=wild", "preset",
+                "system=1999", "system");
+        expected.forEach((query, field) -> assertThat(mvc.get().uri("/api/v1/seasons/1988/standings?" + query))
+                .as(query)
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.field").isEqualTo(field));
     }
 
     @Test

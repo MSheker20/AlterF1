@@ -10,6 +10,7 @@ import { SeasonPage } from './SeasonPage'
 const SEASONS: SeasonSummary[] = [
   { year: 1988, champion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna' } },
   { year: 1991, champion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna' } },
+  { year: 2023, champion: { driverId: 'max-verstappen', driverName: 'Max Verstappen' } },
 ]
 
 const SYSTEMS: ScoringSystem[] = [
@@ -30,9 +31,56 @@ const STANDINGS_1988_1991: StandingsResponse = {
   system: '1991',
   realSystem: '1961',
   preset: 'historical',
+  scenario: {
+    excludedDrivers: [],
+    skippedRounds: [],
+    sprints: true,
+    fastestLap: true,
+    preset: 'historical',
+    custom: null,
+  },
+  rules: {
+    racePoints: [10, 6, 4, 3, 2, 1],
+    sprintPoints: [],
+    fastestLap: null,
+    bestResults: { type: 'all' },
+  },
   races: [
-    { round: 1, grandPrixId: 'brazil', code: 'BRA', date: '1988-04-03' },
-    { round: 2, grandPrixId: 'san-marino', code: 'SMR', date: '1988-05-01' },
+    { round: 1, grandPrixId: 'brazil', code: 'BRA', date: '1988-04-03', sprint: false, skipped: false },
+    {
+      round: 2,
+      grandPrixId: 'san-marino',
+      code: 'SMR',
+      date: '1988-05-01',
+      sprint: false,
+      skipped: false,
+    },
+  ],
+  entrants: [
+    {
+      driverId: 'ayrton-senna',
+      driverName: 'Ayrton Senna',
+      driverCode: 'SEN',
+      constructorId: 'mclaren',
+      constructorName: 'McLaren',
+      excluded: false,
+    },
+    {
+      driverId: 'alain-prost',
+      driverName: 'Alain Prost',
+      driverCode: 'PRO',
+      constructorId: 'mclaren',
+      constructorName: 'McLaren',
+      excluded: false,
+    },
+    {
+      driverId: 'gerhard-berger',
+      driverName: 'Gerhard Berger',
+      driverCode: 'BER',
+      constructorId: 'ferrari',
+      constructorName: 'Ferrari',
+      excluded: false,
+    },
   ],
   champion: { driverId: 'alain-prost', driverName: 'Alain Prost', points: 112.0 },
   realChampion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
@@ -89,6 +137,12 @@ const STANDINGS_1988_1991: StandingsResponse = {
 const STANDINGS_1988_1961: StandingsResponse = {
   ...STANDINGS_1988_1991,
   system: '1961',
+  rules: {
+    racePoints: [9, 6, 4, 3, 2, 1],
+    sprintPoints: [],
+    fastestLap: null,
+    bestResults: { type: 'season', count: 11 },
+  },
   champion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
   realChampion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
   championChanged: false,
@@ -114,6 +168,111 @@ const STANDINGS_1988_1961: StandingsResponse = {
       positionChange: 0,
       points: 41.0,
     },
+  ],
+}
+
+const STANDINGS_2023_WITHOUT_VER: StandingsResponse = {
+  season: 2023,
+  system: '1991',
+  realSystem: '2010',
+  preset: 'historical',
+  scenario: {
+    excludedDrivers: ['max-verstappen'],
+    skippedRounds: [],
+    sprints: true,
+    fastestLap: true,
+    preset: 'historical',
+    custom: null,
+  },
+  rules: {
+    racePoints: [10, 6, 4, 3, 2, 1],
+    sprintPoints: [3, 2, 1],
+    fastestLap: null,
+    bestResults: { type: 'all' },
+  },
+  races: [
+    {
+      round: 1,
+      grandPrixId: 'bahrain',
+      code: 'BHR',
+      date: '2023-03-05',
+      sprint: false,
+      skipped: false,
+    },
+  ],
+  entrants: [
+    {
+      driverId: 'max-verstappen',
+      driverName: 'Max Verstappen',
+      driverCode: 'VER',
+      constructorId: 'red-bull',
+      constructorName: 'Red Bull',
+      excluded: true,
+    },
+    {
+      driverId: 'sergio-perez',
+      driverName: 'Sergio Perez',
+      driverCode: 'PER',
+      constructorId: 'red-bull',
+      constructorName: 'Red Bull',
+      excluded: false,
+    },
+  ],
+  champion: { driverId: 'sergio-perez', driverName: 'Sergio Perez', points: 118.0 },
+  realChampion: { driverId: 'max-verstappen', driverName: 'Max Verstappen', points: 575.0 },
+  championChanged: true,
+  standings: [
+    {
+      position: 1,
+      realPosition: 2,
+      positionChange: 1,
+      driverId: 'sergio-perez',
+      driverName: 'Sergio Perez',
+      driverCode: 'PER',
+      constructorId: 'red-bull',
+      constructorName: 'Red Bull',
+      points: 118.0,
+      realPoints: 285.0,
+      wins: 6,
+      podiums: 12,
+      results: ['1'],
+    },
+  ],
+}
+
+const STANDINGS_2023_FULL: StandingsResponse = {
+  ...STANDINGS_2023_WITHOUT_VER,
+  scenario: {
+    ...STANDINGS_2023_WITHOUT_VER.scenario,
+    excludedDrivers: [],
+  },
+  entrants: STANDINGS_2023_WITHOUT_VER.entrants.map((entrant) => ({
+    ...entrant,
+    excluded: false,
+  })),
+  champion: { driverId: 'max-verstappen', driverName: 'Max Verstappen', points: 210.0 },
+  championChanged: false,
+  standings: [
+    {
+      position: 1,
+      realPosition: 1,
+      positionChange: 0,
+      driverId: 'max-verstappen',
+      driverName: 'Max Verstappen',
+      driverCode: 'VER',
+      constructorId: 'red-bull',
+      constructorName: 'Red Bull',
+      points: 210.0,
+      realPoints: 575.0,
+      wins: 19,
+      podiums: 21,
+      results: ['1'],
+    },
+    ...STANDINGS_2023_WITHOUT_VER.standings.map((row) => ({
+      ...row,
+      position: 2,
+      positionChange: 0,
+    })),
   ],
 }
 
@@ -177,10 +336,10 @@ describe('SeasonPage', () => {
       if (url === '/api/v1/systems') {
         return jsonResponse(SYSTEMS)
       }
-      if (url === '/api/v1/seasons/1988/standings?system=1991&preset=historical') {
+      if (url === '/api/v1/seasons/1988/standings?system=1991') {
         return jsonResponse(STANDINGS_1988_1991)
       }
-      if (url === '/api/v1/seasons/1988/standings?system=1961&preset=historical') {
+      if (url === '/api/v1/seasons/1988/standings?system=1961') {
         return jsonResponse(STANDINGS_1988_1961)
       }
       if (url === '/api/v1/health') {
@@ -207,7 +366,7 @@ describe('SeasonPage', () => {
 
     expect(await screen.findByText('Same champion: Senna (90)')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/v1/seasons/1988/standings?system=1961&preset=historical',
+      '/api/v1/seasons/1988/standings?system=1961',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
   })
@@ -221,7 +380,7 @@ describe('SeasonPage', () => {
       if (url === '/api/v1/systems') {
         return jsonResponse(SYSTEMS)
       }
-      if (url === '/api/v1/seasons/1949/standings?system=2010&preset=historical') {
+      if (url === '/api/v1/seasons/1949/standings?system=2010') {
         return jsonResponse(
           {
             title: 'Season not found',
@@ -244,5 +403,173 @@ describe('SeasonPage', () => {
       await screen.findByText('No standings data available for the 1949 season.'),
     ).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent('Season not found')
+  })
+
+  it('sends exclude= in the standings request, renders the Without VER chip, and removes it on click', async () => {
+    const user = userEvent.setup()
+
+    const fetchMock = vi.fn((input: unknown) => {
+      const url = String(input)
+      if (url === '/api/v1/seasons') {
+        return jsonResponse(SEASONS)
+      }
+      if (url === '/api/v1/systems') {
+        return jsonResponse(SYSTEMS)
+      }
+      if (url === '/api/v1/seasons/2023/standings?system=1991&exclude=max-verstappen') {
+        return jsonResponse(STANDINGS_2023_WITHOUT_VER)
+      }
+      if (url === '/api/v1/seasons/2023/standings?system=1991') {
+        return jsonResponse(STANDINGS_2023_FULL)
+      }
+      if (url === '/api/v1/health') {
+        return jsonResponse({ status: 'UP', service: 'alterf1-backend', version: '0.0.1' })
+      }
+      return jsonResponse({ title: 'Not Found', status: 404, detail: `Unexpected ${url}` }, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderSeasonPage('/season/2023?exclude=max-verstappen')
+
+    expect(await screen.findByText('With 1 scenario change')).toBeInTheDocument()
+    const chip = screen.getByRole('button', { name: /Without VER/i })
+    expect(chip).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/seasons/2023/standings?system=1991&exclude=max-verstappen',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+
+    await user.click(chip)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('location-probe')).toHaveTextContent('/season/2023?system=1991')
+    })
+    expect(screen.queryByRole('button', { name: /Without VER/i })).not.toBeInTheDocument()
+    expect(await screen.findByText('Same champion: Verstappen (210)')).toBeInTheDocument()
+  })
+
+  it('maps 400 problem field errors inline while keeping previous standings, and hides stale standings on 500', async () => {
+    const user = userEvent.setup()
+
+    const fetchMock = vi.fn((input: unknown) => {
+      const url = String(input)
+      if (url === '/api/v1/seasons') {
+        return jsonResponse(SEASONS)
+      }
+      if (url === '/api/v1/systems') {
+        return jsonResponse(SYSTEMS)
+      }
+      if (url === '/api/v1/seasons/2023/standings?system=1991') {
+        return jsonResponse(STANDINGS_2023_FULL)
+      }
+      if (url === '/api/v1/seasons/2023/standings?system=1991&exclude=max-verstappen') {
+        return jsonResponse(
+          {
+            title: 'Invalid scenario',
+            status: 400,
+            detail: 'Cannot exclude this driver.',
+            field: 'exclude',
+          },
+          400,
+        )
+      }
+      if (
+        url === '/api/v1/seasons/2023/standings?system=1991&preset=pure&exclude=max-verstappen'
+      ) {
+        return jsonResponse(
+          {
+            title: 'Invalid scenario',
+            status: 400,
+            detail: 'General scenario validation failed.',
+          },
+          400,
+        )
+      }
+      if (
+        url === '/api/v1/seasons/2023/standings?system=1991&preset=all&exclude=max-verstappen'
+      ) {
+        return jsonResponse(
+          {
+            title: 'Server error',
+            status: 500,
+            detail: 'Database unavailable.',
+          },
+          500,
+        )
+      }
+      if (url === '/api/v1/health') {
+        return jsonResponse({ status: 'UP', service: 'alterf1-backend', version: '0.0.1' })
+      }
+      return jsonResponse({ title: 'Not Found', status: 404, detail: `Unexpected ${url}` }, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderSeasonPage('/season/2023?system=1991')
+
+    expect(await screen.findByText('Same champion: Verstappen (210)')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Scenario' }))
+    await user.click(screen.getByRole('checkbox', { name: /Max Verstappen/i }))
+
+    expect(await screen.findByText('Cannot exclude this driver.')).toBeInTheDocument()
+    // Previous standings stay visible and ChampionHeadline counts data.scenario (0), not URL (1).
+    expect(screen.getByText('Same champion: Verstappen (210)')).toBeInTheDocument()
+    expect(screen.queryByText('With 1 scenario change')).not.toBeInTheDocument()
+
+    // 400 without field renders in the general alert banner at the top of the panel body.
+    await user.click(screen.getByRole('button', { name: 'Pure' }))
+    expect(await screen.findByText('General scenario validation failed.')).toBeInTheDocument()
+    expect(screen.getByText('Same champion: Verstappen (210)')).toBeInTheDocument()
+
+    // 500 error hides stale standings and shows only the error state.
+    await user.click(screen.getByRole('button', { name: 'All' }))
+    expect(await screen.findByText('Database unavailable.')).toBeInTheDocument()
+    expect(screen.queryByText('Same champion: Verstappen (210)')).not.toBeInTheDocument()
+  })
+
+  it('closes the scenario panel and resets its local state when the season year changes', async () => {
+    const user = userEvent.setup()
+
+    const fetchMock = vi.fn((input: unknown) => {
+      const url = String(input)
+      if (url === '/api/v1/seasons') {
+        return jsonResponse(SEASONS)
+      }
+      if (url === '/api/v1/systems') {
+        return jsonResponse(SYSTEMS)
+      }
+      if (url === '/api/v1/seasons/1988/standings?system=1991') {
+        return jsonResponse(STANDINGS_1988_1991)
+      }
+      if (url === '/api/v1/seasons/2023/standings?system=1991') {
+        return jsonResponse(STANDINGS_2023_FULL)
+      }
+      if (url === '/api/v1/health') {
+        return jsonResponse({ status: 'UP', service: 'alterf1-backend', version: '0.0.1' })
+      }
+      return jsonResponse({ title: 'Not Found', status: 404, detail: `Unexpected ${url}` }, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderSeasonPage('/season/1988?system=1991')
+    expect(
+      await screen.findByText('Champion changes: Prost (112) instead of Senna (90)'),
+    ).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Scenario' }))
+    const filterInput = screen.getByLabelText('Filter drivers')
+    await user.type(filterInput, 'Senna')
+    expect(filterInput).toHaveValue('Senna')
+
+    await screen.findByRole('option', { name: '2023' })
+    await user.selectOptions(screen.getByLabelText('Season'), '2023')
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+    expect(await screen.findByText('Same champion: Verstappen (210)')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Scenario' }))
+    expect(screen.getByLabelText('Filter drivers')).toHaveValue('')
   })
 })

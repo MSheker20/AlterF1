@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -30,47 +31,104 @@ public final class StandingsEngine {
 
     /** Championship of a season under a historical system, with the given switches. */
     public List<DriverStanding> compute(List<SessionResult> season, ScoringSystem system, ScoringOptions options) {
+        return compute(season, system, options, Scenario.NONE);
+    }
+
+    /** Championship of a season under a historical system, after a "what if" scenario. */
+    public List<DriverStanding> compute(List<SessionResult> season, ScoringSystem system, ScoringOptions options,
+            Scenario scenario) {
         if (season.isEmpty()) {
             return List.of();
         }
         int year = season.getFirst().year();
-        ScoringRules rules = system.rulesFor(year, raceRounds(season, options).size());
-        return compute(season, rules, options, system == ScoringSystem.historicalFor(year));
+        return compute(season, rulesFor(season, system, options, scenario), options,
+                system == ScoringSystem.historicalFor(year), scenario);
+    }
+
+    /** The rules a historical system applies to this season after the scenario (best-N scales with it). */
+    public ScoringRules rulesFor(List<SessionResult> season, ScoringSystem system, ScoringOptions options,
+            Scenario scenario) {
+        int year = season.getFirst().year();
+        int raceCount = (int) raceRounds(season, options).stream().filter(r -> !scenario.skips(r)).count();
+        return system.rulesFor(year, raceCount);
     }
 
     /** Championship of a season under arbitrary rules (a user-defined system). */
     public List<DriverStanding> compute(List<SessionResult> season, ScoringRules rules, ScoringOptions options) {
-        return compute(season, rules, options, false);
+        return compute(season, rules, options, false, Scenario.NONE);
+    }
+
+    /** Championship of a season under arbitrary rules, after a "what if" scenario. */
+    public List<DriverStanding> compute(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
+            Scenario scenario) {
+        return compute(season, rules, options, false, scenario);
     }
 
     private List<DriverStanding> compute(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
-            boolean ownSystem) {
+            boolean ownSystem, Scenario scenario) {
         if (season.isEmpty()) {
             return List.of();
         }
         int year = season.getFirst().year();
         ScoringRules realRules = ScoringSystem.historicalFor(year).historical(year);
-        List<Integer> raceRounds = raceRounds(season, options);
+        // Split seasons (1967-80) keep their calendar halves even when a race is removed.
+        List<Integer> allRaceRounds = raceRounds(season, options);
+        List<Integer> raceRounds = allRaceRounds.stream().filter(r -> !scenario.skips(r)).toList();
         Map<String, Driver> drivers = new LinkedHashMap<>();
 
         Map<Integer, List<SessionResult>> racesByRound = season.stream()
                 .filter(r -> r.session() == Session.RACE && raceRounds.contains(r.round()))
                 .collect(Collectors.groupingBy(SessionResult::round, TreeMap::new, Collectors.toList()));
         racesByRound.forEach((round, rows) -> {
+            // What really happened is read from the full, unchanged race; the scenario comes after.
             RaceFacts facts = RaceFacts.derive(rows, realRules);
-            scoreRace(rows, rules, facts, applicableMultiplier(facts.multiplier, options, ownSystem), options, drivers);
+            scoreRace(rows, rules, facts, applicableMultiplier(facts.multiplier, options, ownSystem), options,
+                    drivers, scenario);
         });
 
         if (options.sprints()) {
             season.stream()
-                    .filter(r -> r.session() == Session.SPRINT && r.position() != null)
-                    .forEach(r -> {
-                        Driver driver = driver(drivers, r);
-                        driver.constructors.merge(r.constructorId(), 1, Integer::sum);
-                        driver.sprint = driver.sprint.add(rules.sprintPointsFor(r.position()));
+                    .filter(r -> r.session() == Session.SPRINT && !scenario.skips(r.round()))
+                    .collect(Collectors.groupingBy(SessionResult::round, TreeMap::new, Collectors.toList()))
+                    .forEach((round, rows) -> {
+                        Map<Integer, Integer> positions = renumber(rows, scenario);
+                        for (SessionResult r : rows) {
+                            Integer position = positions.get(r.positionDisplayOrder());
+                            if (scenario.excludes(r.driverId()) || position == null) {
+                                continue;
+                            }
+                            Driver driver = driver(drivers, r);
+                            driver.constructors.merge(r.constructorId(), 1, Integer::sum);
+                            driver.sprint = driver.sprint.add(rules.sprintPointsFor(position));
+                        }
                     });
         }
-        return rank(drivers.values(), rules.bestResults(), raceRounds);
+        return rank(drivers.values(), rules.bestResults(), allRaceRounds);
+    }
+
+    /**
+     * Finishing positions after removing excluded drivers: everyone behind a vacated position
+     * moves up. A shared car whose other driver remains keeps its position.
+     * Returns positionDisplayOrder → new position, for the remaining classified rows.
+     * Public so the API shows the same renumbered results the points were computed from.
+     */
+    public static Map<Integer, Integer> renumber(List<SessionResult> rows, Scenario scenario) {
+        Map<Integer, List<SessionResult>> byPosition = rows.stream()
+                .filter(SessionResult::classified)
+                .collect(Collectors.groupingBy(SessionResult::position, TreeMap::new, Collectors.toList()));
+        Map<Integer, Integer> positions = new HashMap<>();
+        int vacated = 0;
+        for (Map.Entry<Integer, List<SessionResult>> e : byPosition.entrySet()) {
+            List<SessionResult> remaining = e.getValue().stream().filter(r -> !scenario.excludes(r.driverId())).toList();
+            if (remaining.isEmpty()) {
+                vacated++;
+                continue;
+            }
+            for (SessionResult r : remaining) {
+                positions.put(r.positionDisplayOrder(), e.getKey() - vacated);
+            }
+        }
+        return positions;
     }
 
     /** Real-life multipliers are a user setting (PLAN.md §3): apply only what the options allow. */
@@ -89,12 +147,28 @@ public final class StandingsEngine {
 
     // ---- race scoring -------------------------------------------------------------------
 
-    private void scoreRace(List<SessionResult> rows, ScoringRules rules, RaceFacts facts, BigDecimal multiplier,
-            ScoringOptions options, Map<String, Driver> drivers) {
+    private void scoreRace(List<SessionResult> allRows, ScoringRules rules, RaceFacts facts, BigDecimal multiplier,
+            ScoringOptions options, Map<String, Driver> drivers, Scenario scenario) {
+        List<SessionResult> rows = allRows.stream().filter(r -> !scenario.excludes(r.driverId())).toList();
+        Map<Integer, Integer> positions = renumber(allRows, scenario);
+        Map<Integer, Integer> scoringPositions = scoringPositions(rows, positions, facts);
+        Set<Integer> transferredFastestLap = transferFastestLap(allRows, rows, scenario, facts);
+        // Real-life splits only hold while everyone who shared still takes part: once a driver of a
+        // shared car or of a shared fastest lap is removed, the rest split by the rule instead.
+        Set<Integer> brokenSharedPositions = allRows.stream()
+                .filter(r -> r.classified() && scenario.excludes(r.driverId()))
+                .map(SessionResult::position)
+                .collect(Collectors.toSet());
+        boolean fastestLapShareBroken = allRows.stream()
+                .anyMatch(r -> r.fastestLap() && scenario.excludes(r.driverId()));
+
         Map<Integer, Long> carsAtPosition = rows.stream()
                 .filter(r -> r.classified() && !facts.ineligible(r))
-                .collect(Collectors.groupingBy(SessionResult::position, Collectors.counting()));
-        long fastestLapCount = rows.stream().filter(r -> r.fastestLap() && !facts.ineligible(r)).count();
+                .collect(Collectors.groupingBy(r -> positions.get(r.positionDisplayOrder()), Collectors.counting()));
+        long fastestLapCount = rows.stream()
+                .filter(r -> (r.fastestLap() || transferredFastestLap.contains(r.positionDisplayOrder()))
+                        && !facts.ineligible(r))
+                .count();
         FastestLapRule fastestLap = options.fastestLap() ? rules.fastestLap() : null;
 
         for (SessionResult row : rows) {
@@ -105,27 +179,30 @@ public final class StandingsEngine {
                 continue;
             }
 
+            Integer position = positions.get(row.positionDisplayOrder());
             BigDecimal score = BigDecimal.ZERO;
-            if (row.classified()) {
-                driver.countFinish(row.position());
+            if (position != null) {
+                driver.countFinish(position);
                 // The system decides whether a shared car scores at all; the data, when it
                 // knows, decides how the points were divided between its drivers.
-                long sharing = carsAtPosition.getOrDefault(row.position(), 1L);
+                long sharing = carsAtPosition.getOrDefault(position, 1L);
                 BigDecimal share;
                 if (sharing == 1) {
                     share = BigDecimal.ONE;
                 } else if (rules.sharedDrive() == SharedDriveRule.NO_POINTS) {
                     share = BigDecimal.ZERO;
                 } else {
-                    share = facts.pointsShare(row);
+                    share = brokenSharedPositions.contains(row.position()) ? null : facts.pointsShare(row);
                     if (share == null) {
                         share = BigDecimal.ONE.divide(BigDecimal.valueOf(sharing), SCALE, RoundingMode.HALF_EVEN);
                     }
                 }
-                score = score.add(rules.racePointsFor(facts.scoringPosition(row)).multiply(share));
+                score = score.add(rules.racePointsFor(scoringPositions.get(row.positionDisplayOrder())).multiply(share));
             }
-            if (fastestLap != null && row.fastestLap() && fastestLap.eligible(row.position())) {
-                BigDecimal share = facts.fastestLapShare(row);
+            boolean transferred = transferredFastestLap.contains(row.positionDisplayOrder());
+            if (fastestLap != null && (row.fastestLap() || transferred) && fastestLap.eligible(position)) {
+                // A bonus passed on by a scenario has no real-life split to follow.
+                BigDecimal share = transferred || fastestLapShareBroken ? null : facts.fastestLapShare(row);
                 if (share == null) {
                     share = fastestLap.splitWhenShared() && fastestLapCount > 1
                             ? BigDecimal.ONE.divide(BigDecimal.valueOf(fastestLapCount), SCALE, RoundingMode.HALF_EVEN)
@@ -136,6 +213,59 @@ public final class StandingsEngine {
             // A driver can appear twice in one race (two cars in the 1950s): one race score.
             driver.raceScores.merge(row.round(), score.multiply(multiplier), BigDecimal::add);
         }
+    }
+
+    /**
+     * The position each remaining car scores for. Normally its (renumbered) finishing position;
+     * in races where ineligible cars' points passed to the cars behind (1967/69), its rank
+     * among the eligible cars.
+     */
+    private static Map<Integer, Integer> scoringPositions(List<SessionResult> rows, Map<Integer, Integer> positions,
+            RaceFacts facts) {
+        if (!facts.pointsPassedDown) {
+            return positions;
+        }
+        Map<Integer, Integer> ranks = new HashMap<>();
+        int rank = 1;
+        List<SessionResult> classified = rows.stream()
+                .filter(r -> positions.containsKey(r.positionDisplayOrder()))
+                .sorted(Comparator.comparing((SessionResult r) -> positions.get(r.positionDisplayOrder()))
+                        .thenComparing(SessionResult::positionDisplayOrder))
+                .toList();
+        for (SessionResult r : classified) {
+            if (!facts.ineligible(r)) {
+                ranks.put(r.positionDisplayOrder(), rank++);
+            }
+        }
+        return ranks;
+    }
+
+    /**
+     * When every driver who set the fastest lap was removed, the bonus passes to the next fastest
+     * remaining driver (PLAN.md §2.2). Returns the positionDisplayOrder of the row that receives it.
+     */
+    private static Set<Integer> transferFastestLap(List<SessionResult> allRows, List<SessionResult> rows,
+            Scenario scenario, RaceFacts facts) {
+        boolean removedHolder = allRows.stream().anyMatch(r -> r.fastestLap() && scenario.excludes(r.driverId()));
+        boolean remainingHolder = rows.stream().anyMatch(r -> r.fastestLap() && !facts.ineligible(r));
+        if (!removedHolder || remainingHolder || rows.isEmpty()) {
+            return Set.of();
+        }
+        // The next fastest driver who is still in the race and may score.
+        List<String> ranking = scenario.fastestLapRanking().getOrDefault(rows.getFirst().round(), List.of());
+        for (String next : ranking) {
+            if (scenario.excludes(next)) {
+                continue;
+            }
+            var candidate = rows.stream()
+                    .filter(r -> r.driverId().equals(next) && !facts.ineligible(r))
+                    .min(Comparator.comparing((SessionResult r) -> r.position() == null)
+                            .thenComparing(SessionResult::positionDisplayOrder));
+            if (candidate.isPresent()) {
+                return Set.of(candidate.get().positionDisplayOrder());
+            }
+        }
+        return Set.of();
     }
 
     /**

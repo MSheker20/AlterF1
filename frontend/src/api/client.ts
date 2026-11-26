@@ -4,13 +4,15 @@ export class ApiError extends Error {
   readonly status: number
   readonly title: string
   readonly detail: string
+  readonly field?: string
 
-  constructor(status: number, title: string, detail: string) {
+  constructor(status: number, title: string, detail: string, field?: string) {
     super(detail || title || `HTTP ${status}`)
     this.name = 'ApiError'
     this.status = status
     this.title = title
     this.detail = detail
+    this.field = field
   }
 }
 
@@ -21,6 +23,7 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
   if (!res.ok) {
     let title = res.statusText || `HTTP ${res.status}`
     let detail = ''
+    let field: string | undefined
 
     if (typeof res.json === 'function') {
       try {
@@ -32,13 +35,16 @@ export async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> 
           if (typeof problem.detail === 'string' && problem.detail.length > 0) {
             detail = problem.detail
           }
+          if (typeof problem.field === 'string' && problem.field.length > 0) {
+            field = problem.field
+          }
         }
       } catch {
         // Non-JSON error body; keep status fallback.
       }
     }
 
-    throw new ApiError(res.status, title, detail)
+    throw new ApiError(res.status, title, detail, field)
   }
 
   return (await res.json()) as T

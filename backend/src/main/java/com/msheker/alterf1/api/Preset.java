@@ -29,7 +29,7 @@ public enum Preset {
         return Arrays.stream(values())
                 .filter(p -> p.id().equals(id))
                 .findFirst()
-                .orElseThrow(() -> new BadRequestException("Unknown preset '%s'. Use one of: historical, pure, all."
+                .orElseThrow(() -> new BadRequestException("preset", "Unknown preset '%s'. Use one of: historical, pure, all."
                         .formatted(id)));
     }
 }
