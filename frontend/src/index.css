@@ -3,18 +3,22 @@
 @theme {
   --color-bg: #0b0d10;
   --color-surface: #14171c;
+  --color-surface-2: #1b1f26;
   --color-border: #262b33;
   --color-text: #e8eaed;
   --color-muted: #9aa1ab;
   --color-accent: #e10600;
   --color-ok: #22c55e;
   --color-err: #ef4444;
+  --color-gold: #f5c542;
+  --color-silver: #cbd2dc;
   --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
 
 @layer base {
   html {
     color-scheme: dark;
+    -webkit-font-smoothing: antialiased;
   }
 
   body {
@@ -23,5 +27,43 @@
     font-family: var(--font-sans);
     min-height: 100dvh;
     margin: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-text);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes tower-flash-up {
+  0% {
+    background-color: rgba(34, 197, 94, 0.24);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes tower-flash-down {
+  0% {
+    background-color: rgba(239, 68, 68, 0.24);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.tower-flash-up {
+  animation: tower-flash-up 950ms ease-out;
+}
+
+.tower-flash-down {
+  animation: tower-flash-down 950ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tower-flash-up,
+  .tower-flash-down {
+    animation: none;
   }
 }

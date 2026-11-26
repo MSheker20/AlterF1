@@ -3,7 +3,6 @@ package com.msheker.alterf1.core;
 import static com.msheker.alterf1.core.ScoringRules.points;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 import com.msheker.alterf1.core.BestResults.Halves;
@@ -23,7 +22,7 @@ public enum ScoringSystem {
             boolean fifties = season <= 1959;
             return new ScoringRules(
                     fifties ? points(8, 6, 4, 3, 2) : points(8, 6, 4, 3, 2, 1),
-                    proportionalSprint(fifties ? points(8, 6, 4, 3, 2) : points(8, 6, 4, 3, 2, 1)),
+                    CLASSIC_SPRINT,
                     fifties ? FastestLapRule.FIFTIES : null,
                     new Season(season <= 1953 ? 4 : season <= 1957 || season == 1959 ? 5 : 6),
                     season <= 1957 ? SharedDriveRule.SPLIT : SharedDriveRule.NO_POINTS);
@@ -44,7 +43,7 @@ public enum ScoringSystem {
         @Override
         ScoringRules historical(int season) {
             List<BigDecimal> race = points(9, 6, 4, 3, 2, 1);
-            return new ScoringRules(race, proportionalSprint(race), null, best1961(season), SharedDriveRule.NO_POINTS);
+            return new ScoringRules(race, CLASSIC_SPRINT, null, best1961(season), SharedDriveRule.NO_POINTS);
         }
 
         @Override
@@ -62,7 +61,7 @@ public enum ScoringSystem {
         @Override
         ScoringRules historical(int season) {
             List<BigDecimal> race = points(10, 6, 4, 3, 2, 1);
-            return new ScoringRules(race, proportionalSprint(race), null, BestResults.ALL, SharedDriveRule.NO_POINTS);
+            return new ScoringRules(race, CLASSIC_SPRINT, null, BestResults.ALL, SharedDriveRule.NO_POINTS);
         }
     },
 
@@ -70,7 +69,7 @@ public enum ScoringSystem {
         @Override
         ScoringRules historical(int season) {
             List<BigDecimal> race = points(10, 8, 6, 5, 4, 3, 2, 1);
-            return new ScoringRules(race, proportionalSprint(race), null, BestResults.ALL, SharedDriveRule.NO_POINTS);
+            return new ScoringRules(race, CLASSIC_SPRINT, null, BestResults.ALL, SharedDriveRule.NO_POINTS);
         }
     },
 
@@ -93,8 +92,11 @@ public enum ScoringSystem {
         }
     };
 
-    /** Sprint winner gets 8 where the Grand Prix winner gets 25 (2022 onwards). */
-    private static final BigDecimal SPRINT_RATIO = new BigDecimal("0.32");
+    /**
+     * Sprints under systems that never had them (1950, 1961, 1991, 2003): 3-2-1, the first
+     * sprint rule F1 used (2021). Whole numbers keep the tower readable (PLAN.md §3).
+     */
+    private static final List<BigDecimal> CLASSIC_SPRINT = points(3, 2, 1);
 
     private final String id;
     private final int firstSeason;
@@ -121,6 +123,15 @@ public enum ScoringSystem {
 
     public String id() {
         return id;
+    }
+
+    public int firstSeason() {
+        return firstSeason;
+    }
+
+    /** Last season of the era, or {@code null} while the system is still in use. */
+    public Integer lastSeason() {
+        return lastSeason == Integer.MAX_VALUE ? null : lastSeason;
     }
 
     public boolean covers(int season) {
@@ -159,9 +170,6 @@ public enum ScoringSystem {
         throw new IllegalArgumentException("Unknown scoring system: " + id);
     }
 
-    private static List<BigDecimal> proportionalSprint(List<BigDecimal> racePoints) {
-        return racePoints.stream().map(p -> p.multiply(SPRINT_RATIO).setScale(2, RoundingMode.HALF_UP)).toList();
-    }
 
     /** Dropped-scores rule of each 1961-90 season. */
     private static BestResults best1961(int season) {

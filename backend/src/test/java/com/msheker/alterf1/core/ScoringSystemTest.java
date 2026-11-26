@@ -96,15 +96,12 @@ class ScoringSystemTest {
     }
 
     @Test
-    void s1991UsesProportionalSprintTable() {
-        assertThat(ScoringSystem.S1991.rulesFor(2022, 22).sprintPoints())
-                .containsExactly(
-                        new BigDecimal("3.20"),
-                        new BigDecimal("1.92"),
-                        new BigDecimal("1.28"),
-                        new BigDecimal("0.96"),
-                        new BigDecimal("0.64"),
-                        new BigDecimal("0.32"));
+    void olderSystemsUseTheClassic321SprintTable() {
+        for (ScoringSystem system : java.util.List.of(ScoringSystem.S1950, ScoringSystem.S1961, ScoringSystem.S1991,
+                ScoringSystem.S2003)) {
+            assertThat(system.rulesFor(2022, 22).sprintPoints()).as(system.id())
+                    .containsExactlyElementsOf(ScoringRules.points(3, 2, 1));
+        }
     }
 
     @Test

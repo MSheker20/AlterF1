@@ -1,6 +1,9 @@
 spring:
   application:
     name: alterf1
+  mvc:
+    problemdetails:
+      enabled: true  # framework errors (missing param, bad path variable) as RFC 9457 too
   datasource:
     url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:alterf1}
     username: ${ALTERF1_RO_USER:alterf1_ro}

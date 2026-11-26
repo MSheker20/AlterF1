@@ -164,7 +164,7 @@ class StandingsEngineTest {
 
         assertThat(engine.compute(season, ScoringSystem.S1991, ScoringOptions.HISTORICAL))
                 .extracting(DriverStanding::driverId, DriverStanding::points)
-                .containsExactly(tuple("a", bd("13.20")), tuple("b", bd("7.92")));
+                .containsExactly(tuple("a", bd("13.00")), tuple("b", bd("8.00")));
 
         assertThat(engine.compute(season, ScoringSystem.S2010, noSprints))
                 .extracting(DriverStanding::driverId, DriverStanding::points)

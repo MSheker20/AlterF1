@@ -39,10 +39,14 @@ SELECT
     CASE d.type WHEN 'RACE_RESULT' THEN r.scheduled_laps ELSE r.sprint_race_scheduled_laps END
                                                   AS session_scheduled_laps,
     -- Points actually awarded at the time (NULL = none). Used to verify the engine.
-    d.race_points                                 AS actual_points
+    d.race_points                                 AS actual_points,
+    gp.abbreviation                               AS grand_prix_code,  -- 'BRA', 'GBR', ...
+    con.name                                      AS constructor_name
 FROM f1db.race_data d
-JOIN f1db.race   r   ON r.id = d.race_id
-JOIN f1db.driver drv ON drv.id = d.driver_id
+JOIN f1db.race        r   ON r.id = d.race_id
+JOIN f1db.grand_prix  gp  ON gp.id = r.grand_prix_id
+JOIN f1db.driver      drv ON drv.id = d.driver_id
+JOIN f1db.constructor con ON con.id = d.constructor_id
 WHERE d.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT');
 
 -- Real drivers' champion of each season (what actually happened).

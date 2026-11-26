@@ -151,7 +151,9 @@ final class TestSeasons {
                         e.driverId, e.driverId, abbr,
                         e.constructorId, "engine",
                         false, e.fastestLap,
-                        laps, 50, 50, actual));
+                        laps, 50, 50, actual,
+                        grandPrixId.substring(0, Math.min(3, grandPrixId.length())).toUpperCase(Locale.ROOT),
+                        e.constructorId));
             }
             return built;
         }

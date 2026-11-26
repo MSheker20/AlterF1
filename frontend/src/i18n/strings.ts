@@ -1,0 +1,96 @@
+export const strings = {
+  brand: 'AlterF1',
+  page: {
+    seasonHeading: (year: number) => `${year} season`,
+    invalidSeasonTitle: 'Season not found',
+    invalidSeasonDetail: (rawYear: string) =>
+      `"${rawYear}" is not a valid Formula 1 season year.`,
+    notFoundTitle: 'Page not found',
+    notFoundDetail: 'The page you requested does not exist.',
+    backToDefaultSeason: 'Go to 1988 season',
+    retry: 'Try again',
+    genericErrorTitle: 'Could not load standings',
+    genericErrorDetail: 'An unexpected error occurred while fetching season data.',
+  },
+  controls: {
+    seasonLabel: 'Season',
+    scoringSystemLabel: 'Scoring system',
+    realSystemTooltip: 'Historical scoring system for this season',
+    realSystemSrOnly: 'historical system',
+    viewModeLabel: 'View mode',
+    towerTab: 'Tower',
+    compareTab: 'Compare',
+  },
+  headline: {
+    changedKicker: 'Champion changed',
+    sameKicker: (season: number, systemId: string) => `${season} · ${systemId} rules`,
+    championChanges: (
+      championSurname: string,
+      championPoints: string,
+      realChampionSurname: string,
+      realChampionPoints: string,
+    ) =>
+      `Champion changes: ${championSurname} (${championPoints}) instead of ${realChampionSurname} (${realChampionPoints})`,
+    sameChampion: (championSurname: string, championPoints: string) =>
+      `Same champion: ${championSurname} (${championPoints})`,
+    noChampion: 'No champion recorded for this season',
+    systemRules: (systemId: string, racePoints: readonly number[]) =>
+      `${systemId} rules · ${racePoints.join('-')}`,
+  },
+  delta: {
+    gained: (places: number) => `gained ${places} ${places === 1 ? 'place' : 'places'}`,
+    lost: (places: number) => `lost ${places} ${places === 1 ? 'place' : 'places'}`,
+    unchanged: 'position unchanged',
+  },
+  tower: {
+    listAriaLabel: 'Driver standings',
+    colPos: 'Pos',
+    colDriver: 'Driver',
+    colPoints: 'Pts',
+    colChange: 'Δ',
+    showAll: (total: number) => `Show all ${total} drivers`,
+    showTop: (limit: number) => `Show top ${limit} drivers`,
+    empty: 'No standings data available for this season.',
+    rowPointsUnit: 'pts',
+    expandHint: 'Show race results',
+    collapseHint: 'Hide race results',
+  },
+  detail: {
+    realLabel: (season: number) => `Real ${season}`,
+    systemLabel: (systemId: string) => `${systemId} rules`,
+    winsLabel: 'Wins',
+    podiumsLabel: 'Podiums',
+    positionBadge: (pos: number) => `P${pos}`,
+    unclassified: 'Unclassified',
+    raceResultsHeading: (count: number) => `Race results (${count} ${count === 1 ? 'race' : 'races'})`,
+    didNotTakePart: 'did not take part',
+    raceResultAria: (round: number, code: string, result: string) =>
+      `Round ${round} ${code}: ${result === '' ? 'did not take part' : result}`,
+    closeSheet: 'Close driver details',
+    raceTableAria: 'Per-race results',
+  },
+  compare: {
+    sectionAriaLabel: 'Real versus selected system comparison',
+    realColumn: 'Real',
+    realColumnWithSystem: (realSystem: string) => `Real (${realSystem})`,
+    diffColumn: 'Δ',
+    pointsColumn: 'Pts',
+    realListAria: 'Real championship order',
+    altListAria: (systemId: string) => `${systemId} rules championship order`,
+    inspectorHint: 'Hover, focus, or select a driver to inspect position change.',
+    inspectorTransition: (
+      realPos: string,
+      realPts: string,
+      systemId: string,
+      altPos: number,
+      altPts: string,
+    ) => `Real: ${realPos} (${realPts} pts) → ${systemId}: P${altPos} (${altPts} pts)`,
+    rowAria: (sideLabel: string, pos: string, driverName: string, points: string) =>
+      `${sideLabel} ${pos} ${driverName}, ${points} points`,
+  },
+  footer: {
+    dataPrefix: 'Data: ',
+    f1dbName: 'F1DB',
+    licenseSuffix: ' (CC BY 4.0)',
+  },
+} as const
