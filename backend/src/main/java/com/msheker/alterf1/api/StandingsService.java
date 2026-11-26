@@ -1,6 +1,7 @@
 package com.msheker.alterf1.api;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -40,7 +41,7 @@ public class StandingsService {
 
     public List<SeasonSummary> seasons() {
         Map<Integer, SeasonChampion> champions = repository.findChampions().stream()
-                .collect(Collectors.toMap(SeasonChampion::year, Function.identity()));
+                .collect(Collectors.toMap(SeasonChampion::year, Function.identity(), (a, b) -> a));
         return repository.findSeasons().stream()
                 .map(year -> {
                     SeasonChampion c = champions.get(year);
@@ -66,6 +67,9 @@ public class StandingsService {
 
         List<RaceInfo> races = races(results);
         List<DriverStanding> computed = engine.compute(results, system, preset.options());
+        if (computed.isEmpty()) {
+            throw new SeasonNotFoundException(year);
+        }
         Map<String, RealStanding> real = repository.findRealStandings(year).stream()
                 .collect(Collectors.toMap(RealStanding::driverId, Function.identity(), (a, b) -> a));
         Map<String, List<String>> resultsByDriver = resultsByDriver(results, races);
@@ -89,15 +93,21 @@ public class StandingsService {
                             r == null ? null : r.points(),
                             s.wins(),
                             s.podiums(),
-                            resultsByDriver.getOrDefault(s.driverId(), List.of()));
+                            // A driver with only sprint results still gets one entry per race.
+                            resultsByDriver.getOrDefault(s.driverId(), Collections.nCopies(races.size(), "")));
                 })
                 .toList();
 
-        DriverStanding top = computed.getFirst();
-        Champion champion = new Champion(top.driverId(), top.driverName(), top.points());
         Champion realChampion = repository.findChampion(year)
                 .map(c -> new Champion(c.driverId(), c.driverName(), c.points()))
                 .orElse(null);
+        // Drivers tied on points and countback share P1. If the real champion is among them,
+        // name him and do not claim the title changed.
+        List<DriverStanding> leaders = computed.stream().filter(s -> s.position() == 1).toList();
+        DriverStanding top = realChampion == null ? leaders.getFirst()
+                : leaders.stream().filter(s -> s.driverId().equals(realChampion.driverId())).findFirst()
+                        .orElse(leaders.getFirst());
+        Champion champion = new Champion(top.driverId(), top.driverName(), top.points());
         boolean changed = realChampion != null && !realChampion.driverId().equals(champion.driverId());
 
         return new StandingsResponse(year, system.id(), ScoringSystem.historicalFor(year).id(), preset.id(),

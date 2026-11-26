@@ -14,7 +14,12 @@ import { useMediaQuery } from '../hooks/useMediaQuery'
 import { strings } from '../i18n/strings'
 
 const DEFAULT_ROUTE = '/season/1988?system=1991'
+const KNOWN_SYSTEM_IDS: readonly SystemId[] = ['1950', '1961', '1991', '2003', '2010']
 const SKELETON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+function isKnownSystemId(value: string | undefined): value is SystemId {
+  return value !== undefined && (KNOWN_SYSTEM_IDS as readonly string[]).includes(value)
+}
 
 function parseYearParam(rawYear: string | undefined): number | null {
   if (!rawYear || !/^\d{4}$/.test(rawYear)) {
@@ -77,7 +82,10 @@ export function SeasonPage() {
 
   const handleYearChange = useCallback(
     (nextYear: number) => {
-      const nextSystem = searchParams.get('system')?.trim() || defaultSystemForYear(nextYear)
+      const currentSystem = searchParams.get('system')?.trim()
+      const nextSystem = isKnownSystemId(currentSystem)
+        ? currentSystem
+        : defaultSystemForYear(nextYear)
       navigate(`/season/${nextYear}?system=${encodeURIComponent(nextSystem)}`)
     },
     [navigate, searchParams],
@@ -102,7 +110,9 @@ export function SeasonPage() {
   const seasons = seasonsQuery.data ?? []
   const systems = systemsQuery.data ?? []
   const standingsData = standingsQuery.data
-  const activeSystemObj = systems.find((s) => s.id === selectedSystem)
+  const standingsSystemObj = standingsData
+    ? systems.find((s) => s.id === standingsData.system)
+    : undefined
   const sheetRow =
     sheetDriverId !== null && standingsData
       ? (standingsData.standings.find((row) => row.driverId === sheetDriverId) ?? null)
@@ -123,7 +133,7 @@ export function SeasonPage() {
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <YearSelect
               seasons={seasons}
-              selectedYear={parsedYear ?? 1988}
+              selectedYear={parsedYear}
               onChange={handleYearChange}
             />
             <SystemPicker
@@ -131,6 +141,7 @@ export function SeasonPage() {
               selectedSystem={selectedSystem}
               realSystem={standingsData?.realSystem ?? null}
               onChange={handleSystemChange}
+              disabled={parsedYear === null}
             />
           </div>
         </div>
@@ -163,8 +174,8 @@ export function SeasonPage() {
                   champion={standingsData.champion}
                   realChampion={standingsData.realChampion}
                   championChanged={standingsData.championChanged}
-                  activeSystem={activeSystemObj}
-                  selectedSystemId={selectedSystem}
+                  activeSystem={standingsSystemObj}
+                  selectedSystemId={standingsData.system}
                 />
               ) : (
                 <HeadlineSkeleton />
@@ -183,6 +194,7 @@ export function SeasonPage() {
             ) : isDesktop ? (
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(340px,430px)] items-start gap-6">
                 <StandingsTower
+                  key={standingsData.season}
                   standings={standingsData.standings}
                   races={standingsData.races}
                   season={standingsData.season}
@@ -195,6 +207,7 @@ export function SeasonPage() {
 
                 <div className="sticky top-20">
                   <CompareSlope
+                    key={standingsData.season}
                     standings={standingsData.standings}
                     systemId={standingsData.system}
                     realSystem={standingsData.realSystem}
@@ -237,6 +250,7 @@ export function SeasonPage() {
                 {mobileView === 'tower' ? (
                   <>
                     <StandingsTower
+                      key={standingsData.season}
                       standings={standingsData.standings}
                       races={standingsData.races}
                       season={standingsData.season}
@@ -257,6 +271,7 @@ export function SeasonPage() {
                   </>
                 ) : (
                   <CompareSlope
+                    key={standingsData.season}
                     standings={standingsData.standings}
                     systemId={standingsData.system}
                     realSystem={standingsData.realSystem}
@@ -338,7 +353,7 @@ function StandingsErrorState({ error, onRetry }: StandingsErrorStateProps) {
       <ErrorPanel
         title={error.title}
         detail={error.detail}
-        showBackLink={error.status === 404}
+        showBackLink={error.status === 400 || error.status === 404}
         onRetry={onRetry}
       />
     )
@@ -356,8 +371,8 @@ function StandingsErrorState({ error, onRetry }: StandingsErrorStateProps) {
 function HeadlineSkeleton() {
   return (
     <div aria-busy="true" className="space-y-2">
-      <div className="h-[62px] animate-pulse rounded-md border border-border bg-surface" />
-      <div className="h-3.5 w-48 animate-pulse rounded bg-surface" />
+      <div className="h-[62px] motion-safe:animate-pulse rounded-md border border-border bg-surface" />
+      <div className="h-3.5 w-48 motion-safe:animate-pulse rounded bg-surface" />
     </div>
   )
 }
@@ -379,20 +394,20 @@ function StandingsSkeleton({ isDesktop }: { isDesktop: boolean }) {
             key={key}
             className="grid h-11 grid-cols-[28px_4px_minmax(0,1fr)_56px_44px] items-center gap-x-2.5 border-b border-border/75 px-3.5"
           >
-            <div className="ml-auto h-3.5 w-4 animate-pulse rounded bg-surface-2" />
-            <div className="h-6 w-1 animate-pulse rounded-[2px] bg-surface-2" />
+            <div className="ml-auto h-3.5 w-4 motion-safe:animate-pulse rounded bg-surface-2" />
+            <div className="h-6 w-1 motion-safe:animate-pulse rounded-[2px] bg-surface-2" />
             <div className="space-y-1.5">
-              <div className="h-3.5 w-12 animate-pulse rounded bg-surface-2" />
-              <div className="h-2.5 w-20 animate-pulse rounded bg-surface" />
+              <div className="h-3.5 w-12 motion-safe:animate-pulse rounded bg-surface-2" />
+              <div className="h-2.5 w-20 motion-safe:animate-pulse rounded bg-surface" />
             </div>
-            <div className="ml-auto h-3.5 w-8 animate-pulse rounded bg-surface-2" />
-            <div className="ml-auto h-3 w-6 animate-pulse rounded bg-surface" />
+            <div className="ml-auto h-3.5 w-8 motion-safe:animate-pulse rounded bg-surface-2" />
+            <div className="ml-auto h-3 w-6 motion-safe:animate-pulse rounded bg-surface" />
           </div>
         ))}
       </div>
 
       {isDesktop && (
-        <div className="h-[540px] animate-pulse rounded-lg border border-border bg-surface" />
+        <div className="h-[540px] motion-safe:animate-pulse rounded-lg border border-border bg-surface" />
       )}
     </div>
   )

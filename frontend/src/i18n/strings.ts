@@ -14,6 +14,7 @@ export const strings = {
   },
   controls: {
     seasonLabel: 'Season',
+    chooseSeasonPlaceholder: 'Choose a season',
     scoringSystemLabel: 'Scoring system',
     realSystemTooltip: 'Historical scoring system for this season',
     realSystemSrOnly: 'historical system',
@@ -67,6 +68,7 @@ export const strings = {
     raceResultAria: (round: number, code: string, result: string) =>
       `Round ${round} ${code}: ${result === '' ? 'did not take part' : result}`,
     closeSheet: 'Close driver details',
+    sheetBodyAria: 'Driver statistics and race results',
     raceTableAria: 'Per-race results',
   },
   compare: {

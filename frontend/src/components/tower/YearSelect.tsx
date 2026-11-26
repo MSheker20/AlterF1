@@ -4,7 +4,7 @@ import { strings } from '../../i18n/strings'
 
 interface YearSelectProps {
   seasons: readonly SeasonSummary[]
-  selectedYear: number
+  selectedYear: number | null
   onChange: (year: number) => void
   disabled?: boolean
 }
@@ -18,8 +18,10 @@ export function YearSelect({
   const selectId = useId()
 
   const orderedYears = [...seasons].reverse().map((s) => s.year)
-  const hasSelected = orderedYears.includes(selectedYear)
-  const years = hasSelected ? orderedYears : [selectedYear, ...orderedYears]
+  const years =
+    selectedYear === null || orderedYears.includes(selectedYear)
+      ? orderedYears
+      : [selectedYear, ...orderedYears]
 
   return (
     <div className="relative inline-flex items-center">
@@ -29,7 +31,7 @@ export function YearSelect({
       <select
         id={selectId}
         aria-label={strings.controls.seasonLabel}
-        value={String(selectedYear)}
+        value={selectedYear !== null ? String(selectedYear) : ''}
         disabled={disabled}
         onChange={(event) => {
           const next = Number.parseInt(event.target.value, 10)
@@ -39,6 +41,11 @@ export function YearSelect({
         }}
         className="h-9 cursor-pointer appearance-none rounded-lg border border-border bg-surface pl-3 pr-8 text-sm font-semibold tabular-nums text-text transition-colors hover:border-[#363d48] disabled:cursor-not-allowed disabled:opacity-50"
       >
+        {selectedYear === null && (
+          <option value="" disabled className="bg-surface text-muted">
+            {strings.controls.chooseSeasonPlaceholder}
+          </option>
+        )}
         {years.map((year) => (
           <option key={year} value={String(year)} className="bg-surface text-text">
             {year}

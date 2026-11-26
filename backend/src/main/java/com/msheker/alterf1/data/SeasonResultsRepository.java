@@ -93,7 +93,7 @@ public class SeasonResultsRepository {
 
     /** Every season that has results, oldest first. */
     public List<Integer> findSeasons() {
-        return jdbc.sql("SELECT DISTINCT year FROM alterf1.season_race_results ORDER BY year")
+        return jdbc.sql("SELECT year FROM alterf1.seasons ORDER BY year")
                 .query(Integer.class)
                 .list();
     }

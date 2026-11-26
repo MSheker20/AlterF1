@@ -85,15 +85,18 @@ describe('StandingsTower', () => {
 
     expect(within(items[0]).getByText('PRO')).toBeInTheDocument()
     expect(within(items[0]).getByText('112')).toBeInTheDocument()
-    expect(within(items[0]).getByLabelText('gained 1 place')).toHaveTextContent('▲1')
+    expect(within(items[0]).getByText('▲1')).toBeInTheDocument()
+    expect(within(items[0]).getByText('gained 1 place')).toBeInTheDocument()
 
     expect(within(items[1]).getByText('SEN')).toBeInTheDocument()
     expect(within(items[1]).getByText('102.5')).toBeInTheDocument()
-    expect(within(items[1]).getByLabelText('lost 1 place')).toHaveTextContent('▼1')
+    expect(within(items[1]).getByText('▼1')).toBeInTheDocument()
+    expect(within(items[1]).getByText('lost 1 place')).toBeInTheDocument()
 
     expect(within(items[2]).getByText('BER')).toBeInTheDocument()
     expect(within(items[2]).getByText('42')).toBeInTheDocument()
-    expect(within(items[2]).getByLabelText('position unchanged')).toHaveTextContent('—')
+    expect(within(items[2]).getByText('—')).toBeInTheDocument()
+    expect(within(items[2]).getByText('position unchanged')).toBeInTheDocument()
   })
 
   it('shows the first 20 drivers initially and reveals the rest on "Show all"', async () => {

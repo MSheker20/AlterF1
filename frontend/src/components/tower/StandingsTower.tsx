@@ -37,13 +37,6 @@ export function StandingsTower({
     positions: Map<string, number>
   } | null>(null)
 
-  // Collapse the list again when the season changes (state adjusted during render, no effect).
-  const [shownSeason, setShownSeason] = useState(season)
-  if (season !== shownSeason) {
-    setShownSeason(season)
-    setShowAll(false)
-  }
-
   useEffect(() => {
     const nextPositions = new Map<string, number>()
     for (const row of standings) {

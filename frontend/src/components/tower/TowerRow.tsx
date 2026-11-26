@@ -53,7 +53,7 @@ export function TowerRow({
 
   return (
     <motion.li
-      layout
+      layout="position"
       transition={ROW_TRANSITION}
       className="border-b border-border/75 bg-bg"
     >
@@ -94,11 +94,9 @@ export function TowerRow({
           {formatPoints(row.points)}
         </span>
 
-        <span
-          aria-label={delta.ariaLabel}
-          className={`text-right text-xs tabular-nums ${deltaColorClass}`}
-        >
-          {delta.text}
+        <span className={`text-right text-xs tabular-nums ${deltaColorClass}`}>
+          <span aria-hidden="true">{delta.text}</span>
+          <span className="sr-only">{delta.ariaLabel}</span>
         </span>
       </button>
 

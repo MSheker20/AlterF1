@@ -10,6 +10,7 @@
 DROP VIEW IF EXISTS alterf1.season_race_results;
 DROP VIEW IF EXISTS alterf1.season_champions;
 DROP VIEW IF EXISTS alterf1.season_driver_standings;
+DROP VIEW IF EXISTS alterf1.seasons;
 
 -- One row per driver per points-paying session (Grand Prix or sprint) of a season.
 -- This is the only input the standings engine needs; one query per season.
@@ -75,5 +76,13 @@ SELECT
 FROM f1db.season_driver_standing s
 JOIN f1db.driver drv ON drv.id = s.driver_id;
 
-GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions, alterf1.season_driver_standings
-    TO ${roUser};
+-- Seasons that have at least one race result. Cheap: no joins to drivers/constructors.
+CREATE VIEW alterf1.seasons WITH (security_invoker = true) AS
+SELECT s.year
+FROM f1db.season s
+WHERE EXISTS (
+    SELECT 1 FROM f1db.race r JOIN f1db.race_data d ON d.race_id = r.id
+    WHERE r.year = s.year AND d.type = 'RACE_RESULT');
+
+GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions, alterf1.season_driver_standings,
+    alterf1.seasons TO ${roUser};

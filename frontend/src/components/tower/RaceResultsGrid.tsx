@@ -63,17 +63,20 @@ export function RaceResultsGrid({
           return (
             <div
               key={race.round}
-              aria-label={strings.detail.raceResultAria(race.round, race.code, result)}
               title={`${race.round}. ${race.code} (${race.date})`}
               className={`flex min-h-[46px] flex-col items-center justify-center gap-0.5 rounded-[7px] border px-1 py-1.5 ${TONE_CELL_CLASSES[tone]}`}
             >
               <span
+                aria-hidden="true"
                 className={`text-[10px] font-bold uppercase leading-none tracking-[0.06em] ${TONE_GP_CLASSES[tone]}`}
               >
                 {race.code}
               </span>
-              <span className="text-[13px] leading-tight tabular-nums">
+              <span aria-hidden="true" className="text-[13px] leading-tight tabular-nums">
                 {result === '' ? '—' : result}
+              </span>
+              <span className="sr-only">
+                {strings.detail.raceResultAria(race.round, race.code, result)}
               </span>
             </div>
           )
@@ -111,10 +114,13 @@ export function RaceResultsGrid({
               return (
                 <td key={race.round} className="px-[3px] py-2">
                   <span
-                    aria-label={strings.detail.raceResultAria(race.round, race.code, result)}
+                    aria-hidden="true"
                     className={`inline-flex h-6 w-8 items-center justify-center rounded-[5px] border text-[11px] tabular-nums ${TONE_CELL_CLASSES[tone]}`}
                   >
                     {result === '' ? '—' : result}
+                  </span>
+                  <span className="sr-only">
+                    {strings.detail.raceResultAria(race.round, race.code, result)}
                   </span>
                 </td>
               )

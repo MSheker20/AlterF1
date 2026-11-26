@@ -117,7 +117,10 @@ final class RaceFacts {
         for (SessionResult r : classified) {
             int key = r.positionDisplayOrder();
             BigDecimal base = expected(real, scoring.get(key), multiplier);
-            if (ineligible.contains(key) || base.signum() == 0 || carsAt.get(r.position()) == 1) {
+            // Only when shared cars really scored (1950-57) does the data tell how they were split;
+            // a zero under a "shared drives score nothing" season is that rule, not a split.
+            if (ineligible.contains(key) || base.signum() == 0 || carsAt.get(r.position()) == 1
+                    || real.sharedDrive() != SharedDriveRule.SPLIT) {
                 continue;
             }
             // Shared car: how much of the position's points did this driver really get?
@@ -128,7 +131,9 @@ final class RaceFacts {
             BigDecimal bonus = real.fastestLap().points().multiply(multiplier);
             for (SessionResult r : rows) {
                 int key = r.positionDisplayOrder();
-                if (!r.fastestLap() || ineligible.contains(key)
+                // A fastest lap the real rule did not reward (e.g. outside the top 10 in 2019-24)
+                // says nothing about how a bonus was split: leave it to the target system's rule.
+                if (!r.fastestLap() || ineligible.contains(key) || !real.fastestLap().eligible(r.position())
                         || (r.classified() && carsAt.get(r.position()) > 1)) {
                     continue;
                 }

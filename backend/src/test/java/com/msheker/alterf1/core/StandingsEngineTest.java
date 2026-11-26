@@ -217,6 +217,24 @@ class StandingsEngineTest {
     }
 
     @Test
+    void fastestLapOutsideTheRealTopTenStillScoresUnderASystemWithoutThatCondition() {
+        // 2021 rule: the fastest-lap point only for a top-10 finisher, so "k" (P11) really got 0.
+        List<SessionResult> season = TestSeasons.season(2021)
+                .race(1, s -> s.order("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k").fastestLap("k"))
+                .build();
+
+        assertThat(engine.compute(season, ScoringSystem.S2010, ScoringOptions.HISTORICAL))
+                .filteredOn(st -> st.driverId().equals("k"))
+                .extracting(DriverStanding::points)
+                .containsExactly(bd("0.00"));
+        // The 1950 system rewards any fastest lap.
+        assertThat(engine.compute(season, ScoringSystem.S1950, ScoringOptions.HISTORICAL))
+                .filteredOn(st -> st.driverId().equals("k"))
+                .extracting(DriverStanding::points)
+                .containsExactly(bd("1.00"));
+    }
+
+    @Test
     void emptyInputReturnsEmptyList() {
         assertThat(engine.compute(List.of(), ScoringSystem.S2010, ScoringOptions.HISTORICAL)).isEmpty();
         assertThat(engine.compute(List.of(), ScoringSystem.S2010.rulesFor(2024, 24), ScoringOptions.HISTORICAL))

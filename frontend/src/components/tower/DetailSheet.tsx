@@ -41,10 +41,13 @@ export function DetailSheet({
       return
     }
 
+    const justOpened = !wasOpenRef.current
     wasOpenRef.current = true
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    closeButtonRef.current?.focus()
+    if (justOpened) {
+      closeButtonRef.current?.focus({ preventScroll: true })
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -90,75 +93,80 @@ export function DetailSheet({
   return (
     <AnimatePresence>
       {row !== null && (
-        <>
-          <motion.div
-            key="detail-sheet-backdrop"
+        <motion.div
+          key="detail-sheet-backdrop"
+          aria-hidden="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/65"
+        />
+      )}
+
+      {row !== null && (
+        <motion.div
+          key="detail-sheet-panel"
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ duration: 0.28, ease: SHEET_EASE }}
+          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-border bg-surface shadow-2xl"
+        >
+          <div
             aria-hidden="true"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/65"
+            className="mx-auto mb-1.5 mt-2.5 h-1 w-9 shrink-0 rounded-full bg-border"
           />
 
-          <motion.div
-            key="detail-sheet-panel"
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ duration: 0.28, ease: SHEET_EASE }}
-            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85dvh] flex-col rounded-t-2xl border-t border-border bg-surface shadow-2xl"
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 pb-3 pt-1">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span
+                aria-hidden="true"
+                className="h-9 w-1 shrink-0 rounded-[2px]"
+                style={{ backgroundColor: teamColor(row.constructorId) }}
+              />
+              <div className="min-w-0">
+                <h2 id={titleId} className="truncate text-base font-bold leading-tight text-text">
+                  {row.driverName}
+                </h2>
+                <p className="mt-0.5 truncate text-xs text-muted">
+                  {fallbackDriverCode(row.driverCode, row.driverName)} · {row.constructorName}
+                </p>
+              </div>
+            </div>
+
+            <button
+              ref={closeButtonRef}
+              type="button"
+              aria-label={strings.detail.closeSheet}
+              onClick={onClose}
+              className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-2 text-lg leading-none text-text transition-colors hover:border-[#3d4552]"
+            >
+              &times;
+            </button>
+          </div>
+
+          <div
+            role="region"
+            tabIndex={0}
+            aria-label={strings.detail.sheetBodyAria}
+            className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 focus-visible:outline-offset-[-2px]"
           >
-            <div
-              aria-hidden="true"
-              className="mx-auto mb-1.5 mt-2.5 h-1 w-9 shrink-0 rounded-full bg-border"
-            />
+            <SheetStats row={row} season={season} systemId={systemId} />
 
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 pb-3 pt-1">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span
-                  aria-hidden="true"
-                  className="h-9 w-1 shrink-0 rounded-[2px]"
-                  style={{ backgroundColor: teamColor(row.constructorId) }}
-                />
-                <div className="min-w-0">
-                  <h2 id={titleId} className="truncate text-base font-bold leading-tight text-text">
-                    {row.driverName}
-                  </h2>
-                  <p className="mt-0.5 truncate text-xs text-muted">
-                    {fallbackDriverCode(row.driverCode, row.driverName)} · {row.constructorName}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                ref={closeButtonRef}
-                type="button"
-                aria-label={strings.detail.closeSheet}
-                onClick={onClose}
-                className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-2 text-lg leading-none text-text transition-colors hover:border-[#3d4552]"
-              >
-                &times;
-              </button>
+            <div>
+              <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
+                {strings.detail.raceResultsHeading(races.length)}
+              </h3>
+              <RaceResultsGrid races={races} results={row.results} variant="chips" />
             </div>
-
-            <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
-              <SheetStats row={row} season={season} systemId={systemId} />
-
-              <div>
-                <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-                  {strings.detail.raceResultsHeading(races.length)}
-                </h3>
-                <RaceResultsGrid races={races} results={row.results} variant="chips" />
-              </div>
-            </div>
-          </motion.div>
-        </>
+          </div>
+        </motion.div>
       )}
     </AnimatePresence>
   )
@@ -185,29 +193,34 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
           {strings.detail.systemLabel(systemId)}
         </dt>
-        <dd className="flex items-baseline gap-1.5 text-[15px] font-bold tabular-nums text-text">
-          <span>{formatPoints(row.points)}</span>
-          <span aria-label={delta.ariaLabel} className={`text-[11px] font-bold ${deltaColor}`}>
-            {delta.text}
+        <dd className="flex flex-col gap-0.5 tabular-nums">
+          <span className="flex items-baseline gap-1.5 text-[15px] font-bold text-text">
+            <span>{formatPoints(row.points)}</span>
+            <span className={`text-[11px] font-bold ${deltaColor}`}>
+              <span aria-hidden="true">{delta.text}</span>
+              <span className="sr-only">{delta.ariaLabel}</span>
+            </span>
+          </span>
+          <span className="text-[11px] font-normal text-muted">
+            {strings.detail.positionBadge(row.position)}
           </span>
         </dd>
-        <span className="text-[11px] tabular-nums text-muted">
-          {strings.detail.positionBadge(row.position)}
-        </span>
       </div>
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
           {strings.detail.realLabel(season)}
         </dt>
-        <dd className="text-[15px] font-bold tabular-nums text-text">
-          {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}
+        <dd className="flex flex-col gap-0.5 tabular-nums">
+          <span className="text-[15px] font-bold text-text">
+            {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}
+          </span>
+          <span className="text-[11px] font-normal text-muted">
+            {row.realPosition !== null
+              ? strings.detail.positionBadge(row.realPosition)
+              : strings.detail.unclassified}
+          </span>
         </dd>
-        <span className="text-[11px] tabular-nums text-muted">
-          {row.realPosition !== null
-            ? strings.detail.positionBadge(row.realPosition)
-            : strings.detail.unclassified}
-        </span>
       </div>
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">

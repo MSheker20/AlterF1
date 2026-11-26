@@ -158,6 +158,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setPinnedId(null)
+        setHoveredId(null)
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -209,6 +210,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
             !event.target.closest('button')
           ) {
             setPinnedId(null)
+            setHoveredId(null)
           }
         }}
       >
@@ -246,17 +248,28 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                     row.driverName,
                     ptsText,
                   )}
-                  onPointerEnter={() => setHoveredId(row.driverId)}
-                  onPointerLeave={() =>
-                    setHoveredId((prev) => (prev === row.driverId ? null : prev))
-                  }
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === 'mouse') {
+                      setHoveredId(row.driverId)
+                    }
+                  }}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === 'mouse') {
+                      setHoveredId((prev) => (prev === row.driverId ? null : prev))
+                    }
+                  }}
                   onFocus={() => setHoveredId(row.driverId)}
                   onBlur={() =>
                     setHoveredId((prev) => (prev === row.driverId ? null : prev))
                   }
-                  onClick={() =>
-                    setPinnedId((prev) => (prev === row.driverId ? null : row.driverId))
-                  }
+                  onClick={() => {
+                    if (pinnedId === row.driverId) {
+                      setPinnedId(null)
+                      setHoveredId(null)
+                    } else {
+                      setPinnedId(row.driverId)
+                    }
+                  }}
                   className={`grid h-8 w-full cursor-pointer grid-cols-[18px_3px_1fr_auto] items-center gap-x-1.5 rounded-md border px-1.5 text-left transition-all ${
                     isMatch
                       ? 'border-[#3a4250] bg-surface-2 opacity-100'
@@ -296,7 +309,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                   ? `0 0 ${svgSize.width} ${svgSize.height}`
                   : undefined
               }
-              className="pointer-events-none block h-full w-full overflow-visible"
+              className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
             >
               {orderedLines.map((line) => {
                 const isMatch = activeDriverId === line.driverId
@@ -368,17 +381,28 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                     row.driverName,
                     ptsText,
                   )}
-                  onPointerEnter={() => setHoveredId(row.driverId)}
-                  onPointerLeave={() =>
-                    setHoveredId((prev) => (prev === row.driverId ? null : prev))
-                  }
+                  onPointerEnter={(event) => {
+                    if (event.pointerType === 'mouse') {
+                      setHoveredId(row.driverId)
+                    }
+                  }}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === 'mouse') {
+                      setHoveredId((prev) => (prev === row.driverId ? null : prev))
+                    }
+                  }}
                   onFocus={() => setHoveredId(row.driverId)}
                   onBlur={() =>
                     setHoveredId((prev) => (prev === row.driverId ? null : prev))
                   }
-                  onClick={() =>
-                    setPinnedId((prev) => (prev === row.driverId ? null : row.driverId))
-                  }
+                  onClick={() => {
+                    if (pinnedId === row.driverId) {
+                      setPinnedId(null)
+                      setHoveredId(null)
+                    } else {
+                      setPinnedId(row.driverId)
+                    }
+                  }}
                   className={`grid h-8 w-full cursor-pointer grid-cols-[18px_3px_1fr_auto] items-center gap-x-1.5 rounded-md border px-1.5 text-left transition-all ${
                     isMatch
                       ? 'border-[#3a4250] bg-surface-2 opacity-100'
@@ -469,8 +493,9 @@ function CompareInspector({ row, systemId }: CompareInspectorProps) {
           </span>
         </div>
       </div>
-      <span aria-label={delta.ariaLabel} className={`shrink-0 tabular-nums ${deltaClass}`}>
-        {delta.text}
+      <span className={`shrink-0 tabular-nums ${deltaClass}`}>
+        <span aria-hidden="true">{delta.text}</span>
+        <span className="sr-only">{delta.ariaLabel}</span>
       </span>
     </>
   )

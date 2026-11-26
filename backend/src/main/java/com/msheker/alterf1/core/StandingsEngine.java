@@ -66,6 +66,7 @@ public final class StandingsEngine {
                     .filter(r -> r.session() == Session.SPRINT && r.position() != null)
                     .forEach(r -> {
                         Driver driver = driver(drivers, r);
+                        driver.constructors.merge(r.constructorId(), 1, Integer::sum);
                         driver.sprint = driver.sprint.add(rules.sprintPointsFor(r.position()));
                     });
         }
@@ -107,13 +108,19 @@ public final class StandingsEngine {
             BigDecimal score = BigDecimal.ZERO;
             if (row.classified()) {
                 driver.countFinish(row.position());
-                BigDecimal share = facts.pointsShare(row);
-                if (share == null) {
-                    long sharing = carsAtPosition.getOrDefault(row.position(), 1L);
-                    share = sharing == 1 ? BigDecimal.ONE
-                            : rules.sharedDrive() == SharedDriveRule.SPLIT
-                                    ? BigDecimal.ONE.divide(BigDecimal.valueOf(sharing), SCALE, RoundingMode.HALF_EVEN)
-                                    : BigDecimal.ZERO;
+                // The system decides whether a shared car scores at all; the data, when it
+                // knows, decides how the points were divided between its drivers.
+                long sharing = carsAtPosition.getOrDefault(row.position(), 1L);
+                BigDecimal share;
+                if (sharing == 1) {
+                    share = BigDecimal.ONE;
+                } else if (rules.sharedDrive() == SharedDriveRule.NO_POINTS) {
+                    share = BigDecimal.ZERO;
+                } else {
+                    share = facts.pointsShare(row);
+                    if (share == null) {
+                        share = BigDecimal.ONE.divide(BigDecimal.valueOf(sharing), SCALE, RoundingMode.HALF_EVEN);
+                    }
                 }
                 score = score.add(rules.racePointsFor(facts.scoringPosition(row)).multiply(share));
             }
@@ -148,7 +155,10 @@ public final class StandingsEngine {
                 .map(r -> r.actualPoints().divide(realRules.racePointsFor(r.position()), 2, RoundingMode.HALF_UP))
                 .collect(Collectors.groupingBy(ratio -> ratio, Collectors.counting()));
         BigDecimal mostCommon = ratios.entrySet().stream()
-                .max(Map.Entry.<BigDecimal, Long>comparingByValue())
+                // Most common ratio; on a tie prefer "no multiplier" so the result is deterministic.
+                .max(Map.Entry.<BigDecimal, Long>comparingByValue()
+                        .thenComparing(e -> e.getKey().compareTo(BigDecimal.ONE) == 0)
+                        .thenComparing(Map.Entry::getKey, Comparator.reverseOrder()))
                 .map(Map.Entry::getKey)
                 .orElse(BigDecimal.ONE);
         if (mostCommon.compareTo(HALF) == 0) {
