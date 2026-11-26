@@ -1,0 +1,30 @@
+# --- AI / agent files: never commit (also enforced by .githooks/pre-commit) ---
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+PLAN.md
+.claude/
+.mcp.json
+.agents/
+.gemini/
+graphify-out/
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# --- Env / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Build output ---
+target/
+build/
+node_modules/
+dist/
+coverage/
+*.log
