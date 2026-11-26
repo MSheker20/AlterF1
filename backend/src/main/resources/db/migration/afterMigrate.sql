@@ -9,6 +9,7 @@
 
 DROP VIEW IF EXISTS alterf1.season_race_results;
 DROP VIEW IF EXISTS alterf1.season_champions;
+DROP VIEW IF EXISTS alterf1.season_driver_standings;
 
 -- One row per driver per points-paying session (Grand Prix or sprint) of a season.
 -- This is the only input the standings engine needs; one query per season.
@@ -56,4 +57,19 @@ JOIN f1db.driver drv ON drv.id = s.driver_id
 WHERE s.championship_won;
 
 -- The app's read-only role (created by infra/f1db/load.sh) reads only these views.
-GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions TO ${roUser};
+-- The real final drivers' standings of each season (counted points, after dropped scores).
+CREATE VIEW alterf1.season_driver_standings WITH (security_invoker = true) AS
+SELECT
+    s.year,
+    s.position_display_order,
+    s.position_number,
+    s.position_text,
+    s.driver_id,
+    drv.name AS driver_name,
+    s.points,
+    s.championship_won
+FROM f1db.season_driver_standing s
+JOIN f1db.driver drv ON drv.id = s.driver_id;
+
+GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions, alterf1.season_driver_standings
+    TO ${roUser};

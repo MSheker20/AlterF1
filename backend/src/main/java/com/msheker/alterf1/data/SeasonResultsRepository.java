@@ -68,4 +68,24 @@ public class SeasonResultsRepository {
                 .query(SeasonChampion.class)
                 .optional();
     }
+
+    /** The real final drivers' standings of a season, in championship order. */
+    public List<RealStanding> findRealStandings(int year) {
+        return jdbc.sql("""
+                SELECT position_number AS position, position_text, driver_id, driver_name, points
+                FROM alterf1.season_driver_standings
+                WHERE year = :year
+                ORDER BY position_display_order
+                """)
+                .param("year", year)
+                .query(RealStanding.class)
+                .list();
+    }
+
+    /** Every season that has results, oldest first. */
+    public List<Integer> findSeasons() {
+        return jdbc.sql("SELECT DISTINCT year FROM alterf1.season_race_results ORDER BY year")
+                .query(Integer.class)
+                .list();
+    }
 }
