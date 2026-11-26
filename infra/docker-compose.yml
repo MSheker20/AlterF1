@@ -17,20 +17,51 @@ services:
       timeout: 5s
       retries: 10
 
+  f1db-loader:
+    image: postgres:18-alpine
+    entrypoint: ["/bin/sh", "/f1db/load.sh"]
+    env_file:
+      - f1db/f1db.env
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      ALTERF1_RO_PASSWORD: ${ALTERF1_RO_PASSWORD:?set in infra/.env}
+    volumes:
+      - ./f1db/load.sh:/f1db/load.sh:ro
+      - f1db-cache:/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build: ../backend
     ports:
       - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: alterf1_ro
+      SPRING_DATASOURCE_PASSWORD: ${ALTERF1_RO_PASSWORD:?set in infra/.env}
+      SPRING_FLYWAY_USER: ${POSTGRES_USER}
+      SPRING_FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
+      f1db-loader:
+        condition: service_completed_successfully
+        # A reload drops the f1db schema with its dependent views; restarting the
+        # backend re-runs Flyway, whose afterMigrate callback recreates them.
+        restart: true
     healthcheck:
       # The JRE image ships without curl/wget, so probe readiness over bash's /dev/tcp.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/readiness HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
       interval: 10s
       timeout: 5s
       retries: 12
-      start_period: 20s
+      start_period: 30s
 
   frontend:
     build: ../frontend
@@ -50,3 +81,4 @@ services:
 
 volumes:
   pgdata:
+  f1db-cache:

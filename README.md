@@ -11,13 +11,13 @@ Replay real Formula 1 seasons (1950–today) under historical points systems and
 
 ## Run locally
 
-1. Create the local environment file and set your database password:
+1. Create the local environment file and set your database passwords:
 
    ```bash
    cp infra/.env.example infra/.env
    ```
 
-   Edit `infra/.env` and replace `POSTGRES_PASSWORD=change-me` with a local password.
+   Edit `infra/.env` and replace both `POSTGRES_PASSWORD=change-me` (owner role) and `ALTERF1_RO_PASSWORD=change-me-too` (read-only role used by the backend) with local passwords.
 
 2. Start all services:
 
@@ -29,6 +29,14 @@ Replay real Formula 1 seasons (1950–today) under historical points systems and
    - Frontend: http://localhost:5173
    - API health: http://localhost:8080/api/v1/health
 
+## F1DB data
+
+The pinned F1DB release and its SHA-256 checksum live in `infra/f1db/f1db.env`. On `docker compose up`, the one-shot `f1db-loader` service downloads the PostgreSQL dump (verified against the pinned SHA-256 and cached in the `f1db-cache` volume) and loads it into the `f1db` schema. If that version is already loaded, the download and import are skipped. To upgrade F1DB, update `F1DB_VERSION` and `F1DB_SHA256` in `infra/f1db/f1db.env`.
+
+The backend reads data using the read-only `alterf1_ro` role, while Flyway connects with the owner role (`POSTGRES_USER`) to manage the `alterf1` schema.
+
+Backend integration tests require Docker and run via Testcontainers using the same `infra/f1db/load.sh` script. The downloaded F1DB archive is cached locally in `infra/f1db/.cache`.
+
 ## Develop without Docker
 
 ### Backend
@@ -37,7 +45,13 @@ Replay real Formula 1 seasons (1950–today) under historical points systems and
 cd backend && ./mvnw spring-boot:run
 ```
 
-Run backend tests and verification:
+Run backend unit tests (fast, no Docker):
+
+```bash
+cd backend && ./mvnw test
+```
+
+Run everything, including the `*IT` database tests (needs Docker; loads the real F1DB release into a Testcontainers Postgres):
 
 ```bash
 cd backend && ./mvnw verify

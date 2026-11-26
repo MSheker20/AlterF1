@@ -1,6 +1,20 @@
 spring:
   application:
     name: alterf1
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:alterf1}
+    username: ${ALTERF1_RO_USER:alterf1_ro}
+    password: ${ALTERF1_RO_PASSWORD:}
+  flyway:
+    user: ${POSTGRES_USER:alterf1}
+    password: ${POSTGRES_PASSWORD:}
+    schemas:
+      - alterf1
+    default-schema: alterf1
+    create-schemas: true
+    placeholders:
+      # afterMigrate.sql grants SELECT on the views to the role the app connects as.
+      roUser: ${spring.datasource.username}
 
 alterf1:
   version: 0.0.1

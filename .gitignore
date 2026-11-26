@@ -28,3 +28,6 @@ node_modules/
 dist/
 coverage/
 *.log
+
+# --- F1DB download cache ---
+infra/f1db/.cache/
