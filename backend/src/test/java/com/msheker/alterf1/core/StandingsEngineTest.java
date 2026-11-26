@@ -300,6 +300,66 @@ class StandingsEngineTest {
     }
 
     @Test
+    void progressionGivesTotalsAfterEachRaceAndTheClinchingRace() {
+        // 1995 (10-6-4-3-2-1): "a" wins the first three, "b" is second each time.
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, "a", "b")
+                .race(2, "a", "b")
+                .race(3, "a", "b")
+                .race(4, "b", "a")
+                .build();
+
+        StandingsEngine.Progression progression = engine.progression(season, ScoringSystem.S1991,
+                ScoringOptions.HISTORICAL, Scenario.NONE);
+
+        assertThat(progression.rounds()).containsExactly(1, 2, 3, 4);
+        assertThat(progression.totals().get("a"))
+                .containsExactly(bd("10.00"), bd("20.00"), bd("30.00"), bd("36.00"));
+        assertThat(progression.totals().get("b"))
+                .containsExactly(bd("6.00"), bd("12.00"), bd("18.00"), bd("28.00"));
+        // After round 2, b could still reach 32 > 20; after round 3, at most 28 < 30.
+        assertThat(progression.clinch()).isEqualTo(new StandingsEngine.Clinch(3, "a"));
+    }
+
+    @Test
+    void aFutureHalfPointsRaceIsNotAssumedWhenDecidingTheTitle() {
+        // Round 3 ended up with half points, but before it was run nobody knew: b could still
+        // have scored a full 10 and reached 22 > 20, so the title was not decided after round 2.
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, "a", "b")
+                .race(2, "a", "b")
+                .halfPointsRace(3, "a", "b")
+                .build();
+
+        assertThat(engine.progression(season, ScoringSystem.S1991, ScoringOptions.HISTORICAL, Scenario.NONE)
+                .clinch()).isNull();
+    }
+
+    @Test
+    void noClinchWhenTheScenarioLeavesASingleDriver() {
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, "a", "b")
+                .race(2, "a", "b")
+                .race(3, "a", "b")
+                .build();
+        Scenario onlyA = new Scenario(java.util.Set.of("b"), java.util.Set.of(), java.util.Map.of());
+
+        assertThat(engine.progression(season, ScoringSystem.S1991, ScoringOptions.HISTORICAL, onlyA).clinch())
+                .isNull();
+    }
+
+    @Test
+    void aTitleSettledOnlyAtTheLastRaceHasNoEarlyClinch() {
+        List<SessionResult> season = TestSeasons.season(1995)
+                .race(1, "a", "b")
+                .race(2, "b", "a")
+                .build();
+
+        assertThat(engine.progression(season, ScoringSystem.S1991, ScoringOptions.HISTORICAL, Scenario.NONE)
+                .clinch()).isNull();
+    }
+
+    @Test
     void customSystemAppliesItsOwnTableAndBestResults() {
         List<SessionResult> season = TestSeasons.season(1995)
                 .race(1, "a", "b")

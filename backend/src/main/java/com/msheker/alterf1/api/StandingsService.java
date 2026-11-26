@@ -15,10 +15,18 @@ import org.springframework.stereotype.Service;
 
 import com.msheker.alterf1.api.StandingsDtos.BestResultsInfo;
 import com.msheker.alterf1.api.StandingsDtos.Champion;
+import com.msheker.alterf1.api.StandingsDtos.ClinchInfo;
+import com.msheker.alterf1.api.StandingsDtos.CompareCell;
+import com.msheker.alterf1.api.StandingsDtos.CompareDriver;
+import com.msheker.alterf1.api.StandingsDtos.CompareResponse;
+import com.msheker.alterf1.api.StandingsDtos.CompareSystem;
 import com.msheker.alterf1.api.StandingsDtos.CustomInfo;
 import com.msheker.alterf1.api.StandingsDtos.DriverRef;
 import com.msheker.alterf1.api.StandingsDtos.Entrant;
 import com.msheker.alterf1.api.StandingsDtos.FastestLapInfo;
+import com.msheker.alterf1.api.StandingsDtos.ProgressionDriver;
+import com.msheker.alterf1.api.StandingsDtos.ProgressionRace;
+import com.msheker.alterf1.api.StandingsDtos.ProgressionResponse;
 import com.msheker.alterf1.api.StandingsDtos.RaceInfo;
 import com.msheker.alterf1.api.StandingsDtos.RulesInfo;
 import com.msheker.alterf1.api.StandingsDtos.ScenarioInfo;
@@ -98,8 +106,7 @@ public class StandingsService {
         }
 
         List<RaceInfo> races = races(results, skipped);
-        Map<String, RealStanding> real = repository.findRealStandings(year).stream()
-                .collect(Collectors.toMap(RealStanding::driverId, Function.identity(), (a, b) -> a));
+        Map<String, RealStanding> real = realStandings(year);
         Map<String, List<String>> resultsByDriver = resultsByDriver(results, races, scenario);
         Map<String, String> constructorNames = new HashMap<>();
         results.forEach(r -> constructorNames.putIfAbsent(r.constructorId(), r.constructorName()));
@@ -126,16 +133,8 @@ public class StandingsService {
                 })
                 .toList();
 
-        Champion realChampion = repository.findChampion(year)
-                .map(c -> new Champion(c.driverId(), c.driverName(), c.points()))
-                .orElse(null);
-        // Drivers tied on points and countback share P1. If the real champion is among them,
-        // name him and do not claim the title changed.
-        List<DriverStanding> leaders = computed.stream().filter(s -> s.position() == 1).toList();
-        DriverStanding top = realChampion == null ? leaders.getFirst()
-                : leaders.stream().filter(s -> s.driverId().equals(realChampion.driverId())).findFirst()
-                        .orElse(leaders.getFirst());
-        Champion champion = new Champion(top.driverId(), top.driverName(), top.points());
+        Champion realChampion = realChampion(year);
+        Champion champion = champion(computed, realChampion);
         boolean changed = realChampion != null && !realChampion.driverId().equals(champion.driverId());
 
         ScenarioInfo scenarioInfo = new ScenarioInfo(List.copyOf(excluded), skipped.stream().sorted().toList(),
@@ -146,6 +145,137 @@ public class StandingsService {
         return new StandingsResponse(year, query.isCustom() ? StandingsQuery.CUSTOM : system.id(),
                 ScoringSystem.historicalFor(year).id(), query.presetValue().id(), scenarioInfo, rulesInfo(rules),
                 races, entrants(results, real, excluded), champion, realChampion, changed, lines);
+    }
+
+    /** The same season and scenario under every historical system (and the custom one, if given). */
+    public CompareResponse compare(int year, StandingsQuery query) {
+        ScoringOptions options = query.options();
+        Set<String> excluded = query.excludedDrivers();
+        Set<Integer> skipped = query.skippedRounds();
+        CustomSystem custom = query.hasCustomPoints() ? query.customSystem() : null;
+
+        List<SessionResult> results = seasonResults(year);
+        validateScenario(year, results, excluded, skipped);
+        Scenario scenario = new Scenario(excluded, skipped,
+                !excluded.isEmpty() && options.fastestLap() ? repository.findFastestLapRanking(year) : Map.of());
+
+        Map<String, List<DriverStanding>> bySystem = new LinkedHashMap<>();
+        for (ScoringSystem system : ScoringSystem.values()) {
+            bySystem.put(system.id(), engine.compute(results, system, options, scenario));
+        }
+        if (custom != null) {
+            bySystem.put(StandingsQuery.CUSTOM, engine.compute(results, custom.rules(), options, scenario));
+        }
+        if (bySystem.values().iterator().next().isEmpty()) {
+            throw new BadRequestException("Nothing left to score in %d with this scenario.".formatted(year));
+        }
+
+        Champion realChampion = realChampion(year);
+        List<CompareSystem> systems = bySystem.entrySet().stream()
+                .map(e -> {
+                    Champion champion = champion(e.getValue(), realChampion);
+                    return new CompareSystem(e.getKey(), champion,
+                            realChampion != null && !realChampion.driverId().equals(champion.driverId()));
+                })
+                .toList();
+
+        Map<String, RealStanding> real = realStandings(year);
+        Map<String, String> constructorNames = new HashMap<>();
+        results.forEach(r -> constructorNames.putIfAbsent(r.constructorId(), r.constructorName()));
+        Map<String, DriverStanding> anyLine = new LinkedHashMap<>();
+        Map<String, Map<String, CompareCell>> cells = new HashMap<>();
+        bySystem.forEach((systemId, standings) -> standings.forEach(s -> {
+            anyLine.putIfAbsent(s.driverId(), s);
+            cells.computeIfAbsent(s.driverId(), id -> new LinkedHashMap<>())
+                    .put(systemId, new CompareCell(s.position(), s.points()));
+        }));
+
+        List<CompareDriver> drivers = anyLine.values().stream()
+                // Everyone in the real standings, plus anyone who scores under some system.
+                .filter(s -> real.containsKey(s.driverId())
+                        || cells.get(s.driverId()).values().stream().anyMatch(c -> c.points().signum() > 0))
+                .map(s -> {
+                    RealStanding r = real.get(s.driverId());
+                    return new CompareDriver(s.driverId(), s.driverName(), s.driverAbbreviation(), s.constructorId(),
+                            constructorNames.get(s.constructorId()), r == null ? null : r.position(),
+                            cells.get(s.driverId()));
+                })
+                .sorted(Comparator.comparing((CompareDriver d) -> d.realPosition() == null ? Integer.MAX_VALUE
+                        : d.realPosition()).thenComparing(CompareDriver::driverName))
+                .toList();
+        return new CompareResponse(year, ScoringSystem.historicalFor(year).id(), systems, drivers);
+    }
+
+    /** Championship totals race by race under one system and scenario, with the race that decided it. */
+    public ProgressionResponse progression(int year, StandingsQuery query) {
+        ScoringSystem system = query.isCustom() ? null : query.scoringSystem();
+        CustomSystem custom = query.isCustom() ? query.customSystem() : null;
+        ScoringOptions options = query.options();
+        Set<String> excluded = query.excludedDrivers();
+        Set<Integer> skipped = query.skippedRounds();
+
+        List<SessionResult> results = seasonResults(year);
+        validateScenario(year, results, excluded, skipped);
+        Scenario scenario = new Scenario(excluded, skipped,
+                !excluded.isEmpty() && options.fastestLap() ? repository.findFastestLapRanking(year) : Map.of());
+
+        StandingsEngine.Progression progression = custom != null
+                ? engine.progression(results, custom.rules(), options, scenario)
+                : engine.progression(results, system, options, scenario);
+        if (progression.standings().isEmpty()) {
+            throw new BadRequestException("Nothing left to score in %d with this scenario.".formatted(year));
+        }
+
+        Map<Integer, String> codes = new HashMap<>();
+        for (SessionResult r : results) {
+            if (r.session() == Session.RACE) {
+                codes.putIfAbsent(r.round(), r.grandPrixCode());
+            }
+        }
+        // Only sprints that really scored under these rules and options.
+        Set<Integer> sprintRounds = progression.scoringSprintRounds();
+        List<ProgressionRace> races = progression.rounds().stream()
+                .map(round -> new ProgressionRace(round, codes.get(round), sprintRounds.contains(round)))
+                .toList();
+        List<ProgressionDriver> drivers = progression.standings().stream()
+                .filter(s -> s.points().signum() > 0)
+                .map(s -> new ProgressionDriver(s.driverId(), s.driverName(), s.driverAbbreviation(),
+                        s.constructorId(), s.position(), progression.totals().get(s.driverId())))
+                .toList();
+        StandingsEngine.Clinch clinch = progression.clinch();
+        return new ProgressionResponse(year, query.isCustom() ? StandingsQuery.CUSTOM : system.id(), races, drivers,
+                clinch == null ? null : new ClinchInfo(clinch.round(), codes.get(clinch.round()), clinch.driverId()));
+    }
+
+    private List<SessionResult> seasonResults(int year) {
+        List<SessionResult> results = repository.findBySeason(year);
+        if (results.isEmpty()) {
+            throw new SeasonNotFoundException(year);
+        }
+        return results;
+    }
+
+    private Map<String, RealStanding> realStandings(int year) {
+        return repository.findRealStandings(year).stream()
+                .collect(Collectors.toMap(RealStanding::driverId, Function.identity(), (a, b) -> a));
+    }
+
+    private Champion realChampion(int year) {
+        return repository.findChampion(year)
+                .map(c -> new Champion(c.driverId(), c.driverName(), c.points()))
+                .orElse(null);
+    }
+
+    /**
+     * Drivers tied on points and countback share P1. If the real champion is among them,
+     * name him and do not claim the title changed.
+     */
+    private static Champion champion(List<DriverStanding> computed, Champion realChampion) {
+        List<DriverStanding> leaders = computed.stream().filter(s -> s.position() == 1).toList();
+        DriverStanding top = realChampion == null ? leaders.getFirst()
+                : leaders.stream().filter(s -> s.driverId().equals(realChampion.driverId())).findFirst()
+                        .orElse(leaders.getFirst());
+        return new Champion(top.driverId(), top.driverName(), top.points());
     }
 
     private static void validateScenario(int year, List<SessionResult> results, Set<String> excluded,

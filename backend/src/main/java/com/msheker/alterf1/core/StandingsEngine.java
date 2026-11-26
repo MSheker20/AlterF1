@@ -69,6 +69,17 @@ public final class StandingsEngine {
         if (season.isEmpty()) {
             return List.of();
         }
+        Scored scored = score(season, rules, options, ownSystem, scenario);
+        return rank(scored.drivers().values(), rules.bestResults(), scored.allRaceRounds());
+    }
+
+    /** Everything scored for a season, before ranking: per-driver race and sprint scores per round. */
+    private record Scored(Map<String, Driver> drivers, List<Integer> allRaceRounds, List<Integer> raceRounds,
+            Map<Integer, BigDecimal> multipliers, Set<Integer> sprintRounds) {
+    }
+
+    private Scored score(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
+            boolean ownSystem, Scenario scenario) {
         int year = season.getFirst().year();
         ScoringRules realRules = ScoringSystem.historicalFor(year).historical(year);
         // Split seasons (1967-80) keep their calendar halves even when a race is removed.
@@ -79,18 +90,22 @@ public final class StandingsEngine {
         Map<Integer, List<SessionResult>> racesByRound = season.stream()
                 .filter(r -> r.session() == Session.RACE && raceRounds.contains(r.round()))
                 .collect(Collectors.groupingBy(SessionResult::round, TreeMap::new, Collectors.toList()));
+        Map<Integer, BigDecimal> multipliers = new HashMap<>();
         racesByRound.forEach((round, rows) -> {
             // What really happened is read from the full, unchanged race; the scenario comes after.
             RaceFacts facts = RaceFacts.derive(rows, realRules);
-            scoreRace(rows, rules, facts, applicableMultiplier(facts.multiplier, options, ownSystem), options,
-                    drivers, scenario);
+            BigDecimal multiplier = applicableMultiplier(facts.multiplier, options, ownSystem);
+            multipliers.put(round, multiplier);
+            scoreRace(rows, rules, facts, multiplier, options, drivers, scenario);
         });
 
+        Set<Integer> sprintRounds = new java.util.HashSet<>();
         if (options.sprints()) {
             season.stream()
-                    .filter(r -> r.session() == Session.SPRINT && !scenario.skips(r.round()))
+                    .filter(r -> r.session() == Session.SPRINT && raceRounds.contains(r.round()))
                     .collect(Collectors.groupingBy(SessionResult::round, TreeMap::new, Collectors.toList()))
                     .forEach((round, rows) -> {
+                        sprintRounds.add(round);
                         Map<Integer, Integer> positions = renumber(rows, scenario);
                         for (SessionResult r : rows) {
                             Integer position = positions.get(r.positionDisplayOrder());
@@ -99,11 +114,151 @@ public final class StandingsEngine {
                             }
                             Driver driver = driver(drivers, r);
                             driver.constructors.merge(r.constructorId(), 1, Integer::sum);
-                            driver.sprint = driver.sprint.add(rules.sprintPointsFor(position));
+                            driver.sprintScores.merge(round, rules.sprintPointsFor(position), BigDecimal::add);
                         }
                     });
         }
-        return rank(drivers.values(), rules.bestResults(), allRaceRounds);
+        return new Scored(drivers, allRaceRounds, raceRounds, multipliers, sprintRounds);
+    }
+
+    // ---- progression and clinch --------------------------------------------------------------
+
+    /** Championship totals after each counting race, and the race where the title was decided. */
+    public record Progression(List<Integer> rounds, Set<Integer> scoringSprintRounds,
+            Map<String, List<BigDecimal>> totals,
+            List<DriverStanding> standings, Clinch clinch) {
+    }
+
+    /** The title could no longer be lost after {@code round}. */
+    public record Clinch(int round, String driverId) {
+    }
+
+    /** Race-by-race championship totals of a season under a historical system and scenario. */
+    public Progression progression(List<SessionResult> season, ScoringSystem system, ScoringOptions options,
+            Scenario scenario) {
+        if (season.isEmpty()) {
+            return new Progression(List.of(), Set.of(), Map.of(), List.of(), null);
+        }
+        int year = season.getFirst().year();
+        return progression(season, rulesFor(season, system, options, scenario), options,
+                system == ScoringSystem.historicalFor(year), scenario);
+    }
+
+    /** Race-by-race championship totals of a season under arbitrary rules and scenario. */
+    public Progression progression(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
+            Scenario scenario) {
+        if (season.isEmpty()) {
+            return new Progression(List.of(), Set.of(), Map.of(), List.of(), null);
+        }
+        return progression(season, rules, options, false, scenario);
+    }
+
+    private Progression progression(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
+            boolean ownSystem, Scenario scenario) {
+        Scored scored = score(season, rules, options, ownSystem, scenario);
+        List<DriverStanding> standings = rank(scored.drivers().values(), rules.bestResults(), scored.allRaceRounds());
+        List<Integer> rounds = scored.raceRounds();
+
+        // Totals as the championship stood after each race: dropped scores apply to the races so far.
+        Map<String, List<BigDecimal>> totals = new LinkedHashMap<>();
+        for (DriverStanding s : standings) {
+            Driver d = scored.drivers().get(s.driverId());
+            List<BigDecimal> line = new ArrayList<>(rounds.size());
+            for (int round : rounds) {
+                line.add(rounded(totalUpTo(d, round, rules.bestResults(), scored.allRaceRounds())));
+            }
+            totals.put(s.driverId(), line);
+        }
+        Set<Integer> scoringSprints = rules.sprintPointsFor(1).signum() > 0 ? Set.copyOf(scored.sprintRounds())
+                : Set.of();
+        return new Progression(rounds, scoringSprints, totals, standings, clinch(scored, rules, options));
+    }
+
+    /**
+     * The first race after which no rival could catch the leader, even by winning every remaining
+     * race with every bonus (sprint and fastest lap, with real-life multipliers), dropped scores
+     * included. Never the last race: a title settled there was not decided early.
+     */
+    private Clinch clinch(Scored scored, ScoringRules rules, ScoringOptions options) {
+        if (scored.drivers().size() < 2) {
+            return null; // nobody left to beat: nothing was decided on track
+        }
+        List<Integer> rounds = scored.raceRounds();
+        BigDecimal bestRace = rules.racePointsFor(1).add(options.fastestLap() && rules.fastestLap() != null
+                ? rules.fastestLap().points() : BigDecimal.ZERO);
+        BigDecimal bestSprint = rules.sprintPointsFor(1);
+        for (int i = 0; i < rounds.size() - 1; i++) {
+            int round = rounds.get(i);
+            List<Integer> remaining = rounds.subList(i + 1, rounds.size());
+            Driver leader = null;
+            BigDecimal leaderTotal = BigDecimal.ZERO;
+            for (Driver d : scored.drivers().values()) {
+                BigDecimal total = totalUpTo(d, round, rules.bestResults(), scored.allRaceRounds());
+                int byPoints = leader == null ? 1 : rounded(total).compareTo(rounded(leaderTotal));
+                if (byPoints > 0 || (byPoints == 0
+                        && new Countback(d.finishesUpTo(round)).compareTo(new Countback(leader.finishesUpTo(round))) < 0)) {
+                    leader = d;
+                    leaderTotal = total;
+                }
+            }
+            if (leader == null || leaderTotal.signum() == 0) {
+                continue;
+            }
+            boolean decided = true;
+            for (Driver rival : scored.drivers().values()) {
+                if (rival == leader) {
+                    continue;
+                }
+                Map<Integer, BigDecimal> hypothetical = new TreeMap<>(rival.raceScores);
+                hypothetical.keySet().removeIf(r -> r > round);
+                BigDecimal sprints = sumUpTo(rival.sprintScores, round);
+                for (int r : remaining) {
+                    // Half points in a race still to come were not known in advance; double points were
+                    // (announced for 2014), so the best case never assumes less than full points.
+                    hypothetical.put(r, bestRace.multiply(
+                            scored.multipliers().getOrDefault(r, BigDecimal.ONE).max(BigDecimal.ONE)));
+                    if (scored.sprintRounds().contains(r)) {
+                        sprints = sprints.add(bestSprint);
+                    }
+                }
+                BigDecimal rivalBest = counted(hypothetical, rules.bestResults(), scored.allRaceRounds()).add(sprints);
+                int comparison = rounded(rivalBest).compareTo(rounded(leaderTotal));
+                if (comparison > 0) {
+                    decided = false;
+                    break;
+                }
+                if (comparison == 0) {
+                    // A tie is broken on countback. The rival's best case wins every remaining race;
+                    // the leader can only add finishes, so his countback now is his worst case.
+                    int[] rivalFinishes = rival.finishesUpTo(round);
+                    rivalFinishes[1] += remaining.size();
+                    if (new Countback(leader.finishesUpTo(round)).compareTo(new Countback(rivalFinishes)) >= 0) {
+                        decided = false;
+                        break;
+                    }
+                }
+            }
+            if (decided) {
+                return new Clinch(round, leader.id);
+            }
+        }
+        return null;
+    }
+
+    private static BigDecimal totalUpTo(Driver d, int round, BestResults best, List<Integer> allRaceRounds) {
+        Map<Integer, BigDecimal> soFar = new TreeMap<>(d.raceScores);
+        soFar.keySet().removeIf(r -> r > round);
+        return counted(soFar, best, allRaceRounds).add(sumUpTo(d.sprintScores, round));
+    }
+
+    private static BigDecimal sumUpTo(Map<Integer, BigDecimal> scores, int round) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (Map.Entry<Integer, BigDecimal> e : scores.entrySet()) {
+            if (e.getKey() <= round) {
+                total = total.add(e.getValue());
+            }
+        }
+        return total;
     }
 
     /**
@@ -182,7 +337,7 @@ public final class StandingsEngine {
             Integer position = positions.get(row.positionDisplayOrder());
             BigDecimal score = BigDecimal.ZERO;
             if (position != null) {
-                driver.countFinish(position);
+                driver.countFinish(row.round(), position);
                 // The system decides whether a shared car scores at all; the data, when it
                 // knows, decides how the points were divided between its drivers.
                 long sharing = carsAtPosition.getOrDefault(position, 1L);
@@ -305,8 +460,9 @@ public final class StandingsEngine {
     private List<DriverStanding> rank(Iterable<Driver> drivers, BestResults best, List<Integer> raceRounds) {
         List<Driver> sorted = new ArrayList<>();
         for (Driver driver : drivers) {
-            driver.counted = counted(driver, best, raceRounds).add(driver.sprint);
-            driver.gross = sum(driver.raceScores.values()).add(driver.sprint);
+            BigDecimal sprint = sum(driver.sprintScores.values());
+            driver.counted = counted(driver.raceScores, best, raceRounds).add(sprint);
+            driver.gross = sum(driver.raceScores.values()).add(sprint);
             sorted.add(driver);
         }
         Comparator<Driver> order = Comparator.comparing((Driver d) -> rounded(d.counted)).reversed()
@@ -331,15 +487,16 @@ public final class StandingsEngine {
         return rounded(a.counted).compareTo(rounded(b.counted)) == 0 && a.countback().compareTo(b.countback()) == 0;
     }
 
-    private static BigDecimal counted(Driver driver, BestResults best, List<Integer> raceRounds) {
+    /** Race scores (round → score) that count under the dropped-scores rule. */
+    private static BigDecimal counted(Map<Integer, BigDecimal> raceScores, BestResults best, List<Integer> raceRounds) {
         return switch (best) {
-            case All() -> sum(driver.raceScores.values());
-            case Season(int count) -> top(driver.raceScores.values(), count);
+            case All() -> sum(raceScores.values());
+            case Season(int count) -> top(raceScores.values(), count);
             case Halves(int firstHalfRaces, int firstCount, int secondCount) -> {
                 List<Integer> firstHalf = raceRounds.subList(0, Math.min(firstHalfRaces, raceRounds.size()));
                 List<BigDecimal> first = new ArrayList<>();
                 List<BigDecimal> second = new ArrayList<>();
-                driver.raceScores.forEach((round, score) -> (firstHalf.contains(round) ? first : second).add(score));
+                raceScores.forEach((round, score) -> (firstHalf.contains(round) ? first : second).add(score));
                 yield top(first, firstCount).add(top(second, secondCount));
             }
         };
@@ -385,7 +542,10 @@ public final class StandingsEngine {
         final Map<Integer, BigDecimal> raceScores = new TreeMap<>();
         final Map<String, Integer> constructors = new LinkedHashMap<>();
         final int[] finishes = new int[MAX_COUNTBACK + 1];
-        BigDecimal sprint = BigDecimal.ZERO;
+        /** Sprint points per round (sprints never drop). */
+        final Map<Integer, BigDecimal> sprintScores = new TreeMap<>();
+        /** Grand Prix finishing positions per round, for countback as it stood at any point. */
+        final Map<Integer, List<Integer>> finishesByRound = new TreeMap<>();
         BigDecimal counted = BigDecimal.ZERO;
         BigDecimal gross = BigDecimal.ZERO;
 
@@ -395,10 +555,22 @@ public final class StandingsEngine {
             this.abbreviation = abbreviation;
         }
 
-        void countFinish(int position) {
+        void countFinish(int round, int position) {
             if (position <= MAX_COUNTBACK) {
                 finishes[position]++;
+                finishesByRound.computeIfAbsent(round, r -> new ArrayList<>()).add(position);
             }
+        }
+
+        /** Countback as it stood after {@code round}. */
+        int[] finishesUpTo(int round) {
+            int[] upTo = new int[MAX_COUNTBACK + 1];
+            finishesByRound.forEach((r, positions) -> {
+                if (r <= round) {
+                    positions.forEach(p -> upTo[p]++);
+                }
+            });
+            return upTo;
         }
 
         /** Countback key: more wins first, then more seconds, ... (smaller key = better). */

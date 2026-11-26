@@ -80,6 +80,41 @@ public final class StandingsDtos {
             List<String> results) {
     }
 
+    // ---- compare: every system side by side ----
+
+    public record CompareSystem(String id, Champion champion, boolean championChanged) {
+    }
+
+    public record CompareCell(int position, BigDecimal points) {
+    }
+
+    /** @param cells system id → this driver's position and points under that system */
+    public record CompareDriver(String driverId, String driverName, String driverCode, String constructorId,
+            String constructorName, Integer realPosition, java.util.Map<String, CompareCell> cells) {
+    }
+
+    public record CompareResponse(int season, String realSystem, List<CompareSystem> systems,
+            List<CompareDriver> drivers) {
+    }
+
+    // ---- progression: totals race by race ----
+
+    public record ProgressionRace(int round, String code, boolean sprint) {
+    }
+
+    /** @param points championship total (after dropped scores) after each race of {@code races} */
+    public record ProgressionDriver(String driverId, String driverName, String driverCode, String constructorId,
+            int position, List<BigDecimal> points) {
+    }
+
+    public record ClinchInfo(int round, String code, String driverId) {
+    }
+
+    /** @param clinch the race after which the title could no longer be lost; null if only at the last race */
+    public record ProgressionResponse(int season, String system, List<ProgressionRace> races,
+            List<ProgressionDriver> drivers, ClinchInfo clinch) {
+    }
+
     public record StandingsResponse(
             int season,
             String system,

@@ -108,6 +108,63 @@ export interface StandingsResponse {
   standings: StandingRow[]
 }
 
+export interface CompareSystemSummary {
+  id: string
+  champion: ChampionSummary | null
+  championChanged: boolean
+}
+
+export interface CompareCell {
+  position: number
+  points: number
+}
+
+export interface CompareDriverRow {
+  driverId: string
+  driverName: string
+  driverCode: string
+  constructorId: string
+  constructorName: string
+  realPosition: number | null
+  cells: Partial<Record<string, CompareCell>>
+}
+
+export interface CompareResponse {
+  season: number
+  realSystem: string | null
+  systems: CompareSystemSummary[]
+  drivers: CompareDriverRow[]
+}
+
+export interface ProgressionRace {
+  round: number
+  code: string
+  sprint: boolean
+}
+
+export interface ProgressionDriver {
+  driverId: string
+  driverName: string
+  driverCode: string
+  constructorId: string
+  position: number
+  points: number[]
+}
+
+export interface ClinchInfo {
+  round: number
+  code: string
+  driverId: string
+}
+
+export interface ProgressionResponse {
+  season: number
+  system: string
+  races: ProgressionRace[]
+  drivers: ProgressionDriver[]
+  clinch: ClinchInfo | null
+}
+
 export interface ProblemDetail {
   title?: string
   status?: number

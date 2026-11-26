@@ -11,6 +11,8 @@ export const strings = {
     retry: 'Try again',
     genericErrorTitle: 'Could not load standings',
     genericErrorDetail: 'An unexpected error occurred while fetching season data.',
+    viewLoadError: 'Could not load this view.',
+    reload: 'Reload',
   },
   controls: {
     seasonLabel: 'Season',
@@ -22,6 +24,12 @@ export const strings = {
     viewModeLabel: 'View mode',
     towerTab: 'Tower',
     compareTab: 'Compare',
+  },
+  tabs: {
+    navAriaLabel: 'Season views',
+    tower: 'Tower',
+    compare: 'Compare',
+    progression: 'Progression',
   },
   headline: {
     changedKicker: 'Champion changed',
@@ -100,6 +108,57 @@ export const strings = {
       `Real: ${realPos} (${realPts} pts) → ${systemId === 'custom' ? 'Custom' : systemId}: P${altPos} (${altPts} pts)`,
     rowAria: (sideLabel: string, pos: string, driverName: string, points: string) =>
       `${sideLabel} ${pos} ${driverName}, ${points} points`,
+  },
+  compareMatrix: {
+    caption: (season: number) => `How each points system ranks the ${season} season`,
+    driverColumn: 'Driver',
+    sortByRealAria: 'Sort by real championship position',
+    sortBySystemAria: (systemLabel: string) => `Sort by ${systemLabel} position`,
+    selectSystemTitle: (systemLabel: string) => `Select ${systemLabel} system`,
+    selectSystemAria: (
+      systemLabel: string,
+      isReal: boolean,
+      championSurname: string | null,
+      championChanged: boolean,
+    ) => {
+      const details: string[] = []
+      if (isReal) {
+        details.push('historical')
+      }
+      if (championSurname) {
+        details.push(
+          championChanged
+            ? `champion: ${championSurname}, changed`
+            : `champion: ${championSurname}`,
+        )
+      }
+      return details.length > 0
+        ? `Show ${systemLabel} system (${details.join(', ')})`
+        : `Show ${systemLabel} system`
+    },
+    championAria: (code: string, changed: boolean) =>
+      changed ? `Champion changed to ${code}` : `Champion: ${code}`,
+    missingCellAria: 'Not classified under this system',
+    empty: 'No comparison data available for this season.',
+  },
+  progression: {
+    sectionAriaLabel: 'Points progression chart',
+    decidedLabel: 'Decided',
+    clinchedSentence: (surname: string, round: number, code: string, racesRemaining: number) =>
+      racesRemaining > 0
+        ? `${surname} clinched it at round ${round} (${code}), with ${racesRemaining} ${racesRemaining === 1 ? 'race' : 'races'} to go.`
+        : `${surname} clinched it at round ${round} (${code}).`,
+    finalRaceSentence: 'Decided at the final race.',
+    driversLabel: 'Drivers',
+    shownCount: (count: number) => `${count} shown`,
+    top5Button: 'Top 5',
+    clearButton: 'Clear',
+    tooltipRound: (round: number, code: string) => `R${round} · ${code}`,
+    srTableCaption: (season: number, systemId: string) =>
+      `Cumulative points by race for ${season} (${systemId === 'custom' ? 'Custom' : `${systemId} rules`})`,
+    srDriverColumn: 'Driver',
+    empty: 'No progression data available for this season.',
+    noDriversSelected: 'Select one or more drivers below to show their progression.',
   },
   scenario: {
     buttonLabel: 'Scenario',

@@ -38,6 +38,14 @@ record StandingsQuery(
         return CUSTOM.equals(system);
     }
 
+    /** Custom points were given (the compare view then adds a custom column). */
+    boolean hasCustomPoints() {
+        // Any custom parameter means a custom system was meant: validate it (an orphan
+        // customBest without points is a 400, not silently ignored).
+        return Stream.of(custom, customFastestLap, customSprint).anyMatch(v -> v != null && !v.isBlank())
+                || customBest != null;
+    }
+
     ScoringSystem scoringSystem() {
         try {
             return ScoringSystem.byId(system);

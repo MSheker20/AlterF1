@@ -168,6 +168,60 @@ class StandingsApiIT extends AbstractF1dbIntegrationTest {
     }
 
     @Test
+    void compareShowsEverySystemSideBySide() {
+        var response = assertThat(mvc.get().uri("/api/v1/seasons/1988/compare")).hasStatusOk().bodyJson();
+
+        response.extractingPath("$.realSystem").isEqualTo("1961");
+        response.extractingPath("$.systems.length()").isEqualTo(5);
+        response.extractingPath("$.systems[1].id").isEqualTo("1961");
+        response.extractingPath("$.systems[1].championChanged").isEqualTo(false);
+        response.extractingPath("$.systems[2].id").isEqualTo("1991");
+        response.extractingPath("$.systems[2].champion.driverId").isEqualTo("alain-prost");
+        response.extractingPath("$.systems[2].championChanged").isEqualTo(true);
+        response.extractingPath("$.drivers[0].driverId").isEqualTo("ayrton-senna");
+        response.extractingPath("$.drivers[0].realPosition").isEqualTo(1);
+        response.extractingPath("$.drivers[0].cells.1961.position").isEqualTo(1);
+        response.extractingPath("$.drivers[0].cells.1991.position").isEqualTo(2);
+    }
+
+    @Test
+    void compareAddsTheCustomColumnWhenGiven() {
+        assertThat(mvc.get().uri("/api/v1/seasons/1988/compare?custom=10,6,4,3,2,1"))
+                .hasStatusOk()
+                .bodyJson()
+                .extractingPath("$.systems[5].id").isEqualTo("custom");
+    }
+
+    @Test
+    void compareRejectsCustomParametersWithoutPoints() {
+        assertThat(mvc.get().uri("/api/v1/seasons/1988/compare?customBest=5"))
+                .hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson()
+                .extractingPath("$.field").isEqualTo("custom");
+    }
+
+    @Test
+    void progressionFindsTheRaceThatDecidedTheTitle() {
+        // 2023: Verstappen could no longer be caught after Qatar (round 17).
+        var modern = assertThat(mvc.get().uri("/api/v1/seasons/2023/progression?system=2010"))
+                .hasStatusOk()
+                .bodyJson();
+        modern.extractingPath("$.clinch.round").isEqualTo(17);
+        modern.extractingPath("$.clinch.code").isEqualTo("QAT");
+        modern.extractingPath("$.clinch.driverId").isEqualTo("max-verstappen");
+        modern.extractingPath("$.drivers[0].points[21]").isEqualTo(575.0);
+
+        // 1988, best 11 results: Senna decided it at Suzuka (round 15), dropped scores included.
+        var bestN = assertThat(mvc.get().uri("/api/v1/seasons/1988/progression?system=1961"))
+                .hasStatusOk()
+                .bodyJson();
+        bestN.extractingPath("$.clinch.round").isEqualTo(15);
+        bestN.extractingPath("$.clinch.code").isEqualTo("JPN");
+        bestN.extractingPath("$.clinch.driverId").isEqualTo("ayrton-senna");
+        bestN.extractingPath("$.drivers[0].points[15]").isEqualTo(90.0);
+    }
+
+    @Test
     void badRequestsNameTheParameterAtFault() {
         Map<String, String> expected = Map.of(
                 "system=2010&exclude=nobody", "exclude",

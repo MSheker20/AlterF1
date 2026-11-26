@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.msheker.alterf1.api.StandingsDtos.CompareResponse;
+import com.msheker.alterf1.api.StandingsDtos.ProgressionResponse;
 import com.msheker.alterf1.api.StandingsDtos.SeasonSummary;
 import com.msheker.alterf1.api.StandingsDtos.StandingsResponse;
 import com.msheker.alterf1.api.StandingsDtos.SystemInfo;
@@ -52,6 +54,41 @@ public class StandingsController {
             @RequestParam(required = false) String customSprint,
             @RequestParam(required = false) Integer customBest) {
         return service.standings(year, new StandingsQuery(system, preset, exclude, skip, sprint, fastestLap,
+                custom, customFastestLap, customSprint, customBest));
+    }
+
+    /** The season under every historical system side by side (plus the custom one, if given). */
+    @GetMapping("/seasons/{year}/compare")
+    public CompareResponse compare(
+            @PathVariable int year,
+            @RequestParam(defaultValue = "historical") String preset,
+            @RequestParam(required = false) String exclude,
+            @RequestParam(required = false) String skip,
+            @RequestParam(required = false) String sprint,
+            @RequestParam(name = "fl", required = false) String fastestLap,
+            @RequestParam(required = false) String custom,
+            @RequestParam(name = "customFl", required = false) String customFastestLap,
+            @RequestParam(required = false) String customSprint,
+            @RequestParam(required = false) Integer customBest) {
+        return service.compare(year, new StandingsQuery(null, preset, exclude, skip, sprint, fastestLap,
+                custom, customFastestLap, customSprint, customBest));
+    }
+
+    /** Championship totals race by race under one system, and the race that decided the title. */
+    @GetMapping("/seasons/{year}/progression")
+    public ProgressionResponse progression(
+            @PathVariable int year,
+            @RequestParam String system,
+            @RequestParam(defaultValue = "historical") String preset,
+            @RequestParam(required = false) String exclude,
+            @RequestParam(required = false) String skip,
+            @RequestParam(required = false) String sprint,
+            @RequestParam(name = "fl", required = false) String fastestLap,
+            @RequestParam(required = false) String custom,
+            @RequestParam(name = "customFl", required = false) String customFastestLap,
+            @RequestParam(required = false) String customSprint,
+            @RequestParam(required = false) Integer customBest) {
+        return service.progression(year, new StandingsQuery(system, preset, exclude, skip, sprint, fastestLap,
                 custom, customFastestLap, customSprint, customBest));
     }
 }

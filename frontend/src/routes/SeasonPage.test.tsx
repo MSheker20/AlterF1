@@ -572,4 +572,38 @@ describe('SeasonPage', () => {
     await user.click(screen.getByRole('button', { name: 'Scenario' }))
     expect(screen.getByLabelText('Filter drivers')).toHaveValue('')
   })
+
+  it('renders season view tabs that preserve the URL search string', async () => {
+    const fetchMock = vi.fn((input: unknown) => {
+      const url = String(input)
+      if (url === '/api/v1/seasons') {
+        return jsonResponse(SEASONS)
+      }
+      if (url === '/api/v1/systems') {
+        return jsonResponse(SYSTEMS)
+      }
+      if (url === '/api/v1/seasons/1988/standings?system=1991') {
+        return jsonResponse(STANDINGS_1988_1991)
+      }
+      if (url === '/api/v1/health') {
+        return jsonResponse({ status: 'UP', service: 'alterf1-backend', version: '0.0.1' })
+      }
+      return jsonResponse({}, 404)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    renderSeasonPage('/season/1988?system=1991')
+
+    expect(
+      await screen.findByText('Champion changes: Prost (112) instead of Senna (90)'),
+    ).toBeInTheDocument()
+
+    const towerLink = screen.getByRole('link', { name: 'Tower' })
+    const compareLink = screen.getByRole('link', { name: 'Compare' })
+    const progressionLink = screen.getByRole('link', { name: 'Progression' })
+
+    expect(towerLink).toHaveAttribute('aria-current', 'page')
+    expect(compareLink).toHaveAttribute('href', '/season/1988/compare?system=1991')
+    expect(progressionLink).toHaveAttribute('href', '/season/1988/progression?system=1991')
+  })
 })

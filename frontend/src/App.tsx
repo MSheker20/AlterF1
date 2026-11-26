@@ -1,7 +1,16 @@
+import { lazy, Suspense } from 'react'
 import { Link, Navigate, Route, Routes } from 'react-router'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { HealthBadge } from './components/HealthBadge'
+import { SeasonLayout } from './components/season/SeasonLayout'
 import { strings } from './i18n/strings'
-import { SeasonPage } from './routes/SeasonPage'
+import { CompareTab } from './routes/CompareTab'
+import { TowerTab } from './routes/SeasonPage'
+
+// Recharts is only needed on the Progression tab: keep it out of the first download.
+const ProgressionTab = lazy(() =>
+  import('./routes/ProgressionTab').then((m) => ({ default: m.ProgressionTab })),
+)
 
 function NotFoundPage() {
   return (
@@ -58,7 +67,20 @@ export function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/season/1988?system=1991" replace />} />
-      <Route path="/season/:year" element={<SeasonPage />} />
+      <Route path="/season/:year" element={<SeasonLayout />}>
+        <Route index element={<TowerTab />} />
+        <Route path="compare" element={<CompareTab />} />
+        <Route
+          path="progression"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<div aria-busy="true" className="min-h-[440px]" />}>
+                <ProgressionTab />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+      </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
