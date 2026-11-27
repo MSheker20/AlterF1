@@ -1,3 +1,5 @@
+export type ChampionshipMode = 'drivers' | 'constructors'
+
 export type BuiltinSystemId = '1950' | '1961' | '1991' | '2003' | '2010'
 export type SystemId = BuiltinSystemId | 'custom'
 export type MultiplierPreset = 'historical' | 'pure' | 'all'
@@ -191,6 +193,101 @@ export interface ProgressionResponse {
   races: ProgressionRace[]
   drivers: ProgressionDriver[]
   clinch: ClinchInfo | null
+}
+
+// ---- constructors' championship (mirrors drivers' shapes) ----
+
+export interface ConstructorChampionSummary {
+  teamId: string
+  constructorId: string
+  engineManufacturerId: string
+  teamName: string
+  points: number
+}
+
+export interface ConstructorRulesSummary {
+  bestCarOnly: boolean
+  bestResults: BestResultsRule
+}
+
+export interface ConstructorStandingRow {
+  position: number
+  realPosition: number | null
+  positionChange: number | null
+  teamId: string
+  constructorId: string
+  engineManufacturerId: string
+  teamName: string
+  points: number
+  realPoints: number | null
+  wins: number
+  podiums: number
+  results: string[]
+}
+
+export interface ConstructorStandingsResponse {
+  season: number
+  system: string
+  realSystem: string | null
+  preset: string
+  alternative: boolean
+  scenario: ScenarioPayload
+  rules: RulesSummary
+  constructorRules: ConstructorRulesSummary
+  races: RaceSummary[]
+  entrants: EntrantSummary[]
+  champion: ConstructorChampionSummary | null
+  realChampion: ConstructorChampionSummary | null
+  championChanged: boolean
+  notes: SeasonNote[]
+  standings: ConstructorStandingRow[]
+}
+
+export interface ConstructorCompareSystemSummary {
+  id: string
+  champion: ConstructorChampionSummary | null
+  championChanged: boolean
+}
+
+export interface ConstructorCompareTeamRow {
+  teamId: string
+  constructorId: string
+  engineManufacturerId: string
+  teamName: string
+  realPosition: number | null
+  cells: Partial<Record<string, CompareCell>>
+}
+
+export interface ConstructorCompareResponse {
+  season: number
+  realSystem: string | null
+  alternative: boolean
+  systems: ConstructorCompareSystemSummary[]
+  teams: ConstructorCompareTeamRow[]
+}
+
+export interface ProgressionTeam {
+  teamId: string
+  constructorId: string
+  engineManufacturerId: string
+  teamName: string
+  position: number
+  points: number[]
+}
+
+export interface ConstructorClinchInfo {
+  round: number
+  code: string
+  teamId: string
+}
+
+export interface ConstructorProgressionResponse {
+  season: number
+  system: string
+  alternative: boolean
+  races: ProgressionRace[]
+  teams: ProgressionTeam[]
+  clinch: ConstructorClinchInfo | null
 }
 
 export interface ProblemDetail {

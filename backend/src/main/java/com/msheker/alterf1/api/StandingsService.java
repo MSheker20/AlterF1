@@ -284,7 +284,7 @@ public class StandingsService {
         return new Champion(top.driverId(), top.driverName(), top.points());
     }
 
-    private static void validateScenario(int year, List<SessionResult> results, Set<String> excluded,
+    static void validateScenario(int year, List<SessionResult> results, Set<String> excluded,
             Set<Integer> skipped) {
         Set<String> driverIds = results.stream().map(SessionResult::driverId).collect(Collectors.toSet());
         for (String id : excluded) {
@@ -304,19 +304,22 @@ public class StandingsService {
         }
     }
 
-    private static RulesInfo rulesInfo(ScoringRules rules) {
-        FastestLapInfo fastestLap = rules.fastestLap() == null ? null
-                : new FastestLapInfo(rules.fastestLap().points(), rules.fastestLap().maxPosition());
-        BestResultsInfo best = switch (rules.bestResults()) {
+    static BestResultsInfo bestResultsInfo(BestResults bestResults) {
+        return switch (bestResults) {
             case BestResults.All() -> new BestResultsInfo("all", null, null, null, null);
             case BestResults.Season(int count) -> new BestResultsInfo("season", count, null, null, null);
             case BestResults.Halves(int firstHalfRaces, int firstCount, int secondCount) ->
                     new BestResultsInfo("halves", null, firstHalfRaces, firstCount, secondCount);
         };
-        return new RulesInfo(rules.racePoints(), rules.sprintPoints(), fastestLap, best);
     }
 
-    private static List<RaceInfo> races(List<SessionResult> results, Set<Integer> skipped) {
+    static RulesInfo rulesInfo(ScoringRules rules) {
+        FastestLapInfo fastestLap = rules.fastestLap() == null ? null
+                : new FastestLapInfo(rules.fastestLap().points(), rules.fastestLap().maxPosition());
+        return new RulesInfo(rules.racePoints(), rules.sprintPoints(), fastestLap, bestResultsInfo(rules.bestResults()));
+    }
+
+    static List<RaceInfo> races(List<SessionResult> results, Set<Integer> skipped) {
         Set<Integer> sprintRounds = results.stream().filter(r -> r.session() == Session.SPRINT)
                 .map(SessionResult::round).collect(Collectors.toSet());
         Map<Integer, RaceInfo> byRound = new LinkedHashMap<>();
@@ -330,7 +333,7 @@ public class StandingsService {
     }
 
     /** Everyone who took part, in real-standings order then by name; their most frequent team. */
-    private static List<Entrant> entrants(List<SessionResult> results, Map<String, RealStanding> real,
+    static List<Entrant> entrants(List<SessionResult> results, Map<String, RealStanding> real,
             Set<String> excluded) {
         Map<String, SessionResult> first = new LinkedHashMap<>();
         Map<String, Map<String, Integer>> teams = new HashMap<>();
@@ -384,7 +387,7 @@ public class StandingsService {
         return out;
     }
 
-    private static SessionResult better(SessionResult a, SessionResult b) {
+    static SessionResult better(SessionResult a, SessionResult b) {
         if (a.position() == null) {
             return b;
         }

@@ -1,18 +1,21 @@
 import { useEffect, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
-import type { RaceSummary, StandingRow } from '../../api/types'
+import type { RaceSummary } from '../../api/types'
 import { systemContext, systemLabel } from '../../i18n/system'
+import { isDriverStanding } from '../../lib/championship'
+import type { StandingEntry } from '../../lib/championship'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 import { RaceResultsGrid } from './RaceResultsGrid'
 
 interface DetailSheetProps {
-  row: StandingRow | null
+  row: StandingEntry | null
   races: readonly RaceSummary[]
   season: number
   systemId: string
   restoreFocusTo: HTMLButtonElement | null
+  hideDelta?: boolean
   onClose: () => void
 }
 
@@ -26,6 +29,7 @@ export function DetailSheet({
   season,
   systemId,
   restoreFocusTo,
+  hideDelta = false,
   onClose,
 }: DetailSheetProps) {
   const { t } = useTranslation()
@@ -92,6 +96,8 @@ export function DetailSheet({
     }
   }, [row, onClose, restoreFocusTo])
 
+  const isDriver = row !== null && isDriverStanding(row)
+
   return (
     <AnimatePresence>
       {row !== null && (
@@ -134,18 +140,20 @@ export function DetailSheet({
               />
               <div className="min-w-0">
                 <h2 id={titleId} className="truncate text-base font-bold leading-tight text-text">
-                  {row.driverName}
+                  {isDriver ? row.driverName : row.teamName}
                 </h2>
-                <p className="mt-0.5 truncate text-xs text-muted">
-                  {fallbackDriverCode(row.driverCode, row.driverName)} · {row.constructorName}
-                </p>
+                {isDriver && (
+                  <p className="mt-0.5 truncate text-xs text-muted">
+                    {fallbackDriverCode(row.driverCode, row.driverName)} · {row.constructorName}
+                  </p>
+                )}
               </div>
             </div>
 
             <button
               ref={closeButtonRef}
               type="button"
-              aria-label={t('detail.closeSheet')}
+              aria-label={isDriver ? t('detail.closeSheet') : t('detail.closeSheetConstructors')}
               onClick={onClose}
               className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-2 text-lg leading-none text-text transition-colors hover:border-[#3d4552]"
             >
@@ -156,10 +164,12 @@ export function DetailSheet({
           <div
             role="region"
             tabIndex={0}
-            aria-label={t('detail.sheetBodyAria')}
+            aria-label={
+              isDriver ? t('detail.sheetBodyAria') : t('detail.sheetBodyAriaConstructors')
+            }
             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 focus-visible:outline-offset-[-2px]"
           >
-            <SheetStats row={row} season={season} systemId={systemId} />
+            <SheetStats row={row} season={season} systemId={systemId} hideDelta={hideDelta} />
 
             <div>
               <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
@@ -175,12 +185,13 @@ export function DetailSheet({
 }
 
 interface SheetStatsProps {
-  row: StandingRow
+  row: StandingEntry
   season: number
   systemId: string
+  hideDelta: boolean
 }
 
-function SheetStats({ row, season, systemId }: SheetStatsProps) {
+function SheetStats({ row, season, systemId, hideDelta }: SheetStatsProps) {
   const { t } = useTranslation()
   const delta = deltaLabel(t, row.positionChange)
   const deltaColor =
@@ -191,7 +202,11 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
         : 'text-muted'
 
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <dl
+      className={
+        hideDelta ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-2 gap-2 sm:grid-cols-4'
+      }
+    >
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
           {t('detail.systemLabel', {
@@ -202,10 +217,12 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
         <dd className="flex flex-col gap-0.5 tabular-nums">
           <span className="flex items-baseline gap-1.5 text-[15px] font-bold text-text">
             <span>{formatPoints(row.points)}</span>
-            <span className={`text-[11px] font-bold ${deltaColor}`}>
-              <span aria-hidden="true">{delta.text}</span>
-              <span className="sr-only">{delta.ariaLabel}</span>
-            </span>
+            {!hideDelta && (
+              <span className={`text-[11px] font-bold ${deltaColor}`}>
+                <span aria-hidden="true">{delta.text}</span>
+                <span className="sr-only">{delta.ariaLabel}</span>
+              </span>
+            )}
           </span>
           <span className="text-[11px] font-normal text-muted">
             {t('detail.positionBadge', { position: row.position })}
@@ -213,21 +230,23 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
         </dd>
       </div>
 
-      <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
-        <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
-          {t('detail.realLabel', { season })}
-        </dt>
-        <dd className="flex flex-col gap-0.5 tabular-nums">
-          <span className="text-[15px] font-bold text-text">
-            {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}
-          </span>
-          <span className="text-[11px] font-normal text-muted">
-            {row.realPosition !== null
-              ? t('detail.positionBadge', { position: row.realPosition })
-              : t('detail.unclassified')}
-          </span>
-        </dd>
-      </div>
+      {!hideDelta && (
+        <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
+          <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
+            {t('detail.realLabel', { season })}
+          </dt>
+          <dd className="flex flex-col gap-0.5 tabular-nums">
+            <span className="text-[15px] font-bold text-text">
+              {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}
+            </span>
+            <span className="text-[11px] font-normal text-muted">
+              {row.realPosition !== null
+                ? t('detail.positionBadge', { position: row.realPosition })
+                : t('detail.unclassified')}
+            </span>
+          </dd>
+        </div>
+      )}
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">

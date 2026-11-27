@@ -77,6 +77,13 @@ export function AboutPage() {
           <p className="text-sm leading-relaxed text-muted">{t('about.eraBody')}</p>
         </section>
 
+        <section aria-labelledby="constructors-heading" className="space-y-2">
+          <h2 id="constructors-heading" className="text-lg font-semibold text-text">
+            {t('about.constructorsHeading')}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted">{t('about.constructorsBody')}</p>
+        </section>
+
         <section aria-labelledby="notes-heading" className="space-y-4">
           <h2 id="notes-heading" className="text-lg font-semibold text-text">
             {t('about.notesHeading')}

@@ -12,6 +12,7 @@
   },
   "page": {
     "seasonHeading": "{{year}} sezonu",
+    "constructorsHeading": "{{year}} takımlar",
     "invalidSeasonTitle": "Sezon bulunamadı",
     "invalidSeasonDetail": "\"{{rawYear}}\" geçerli bir Formula 1 sezon yılı değil.",
     "notFoundTitle": "Sayfa bulunamadı",
@@ -35,6 +36,11 @@
     "towerTab": "Kule",
     "compareTab": "Karşılaştır"
   },
+  "championship": {
+    "navAriaLabel": "Şampiyona",
+    "drivers": "Pilotlar",
+    "constructors": "Takımlar"
+  },
   "tabs": {
     "navAriaLabel": "Sezon görünümleri",
     "tower": "Kule",
@@ -47,6 +53,8 @@
     "sameKicker_custom": "{{season}} · Özel kurallar",
     "championChanges": "Şampiyon değişiyor: {{realChampion}} ({{realChampionPoints}}) yerine {{champion}} ({{championPoints}})",
     "sameChampion": "Şampiyon aynı: {{champion}} ({{points}})",
+    "alternativeChampion": "Alternatif şampiyon: {{champion}} ({{points}})",
+    "alternativeBadge": "Alternatif — takımlar şampiyonası 1958'de başladı",
     "noChampion": "Bu sezon için kayıtlı şampiyon yok",
     "activeScenarioChanges_one": "{{count}} senaryo değişikliğiyle",
     "activeScenarioChanges_other": "{{count}} senaryo değişikliğiyle",
@@ -62,12 +70,16 @@
   },
   "tower": {
     "listAriaLabel": "Pilotlar sıralaması",
+    "listAriaLabelConstructors": "Takımlar sıralaması",
     "colPos": "Sıra",
     "colDriver": "Pilot",
+    "colConstructor": "Takım",
     "colPoints": "Puan",
     "colChange": "Δ",
     "showAll": "{{total}} pilotun hepsini göster",
     "showTop": "İlk {{limit}} pilotu göster",
+    "showAllConstructors": "{{total}} takımın hepsini göster",
+    "showTopConstructors": "İlk {{limit}} takımı göster",
     "empty": "Bu sezon için sıralama verisi yok.",
     "rowPointsUnit": "puan",
     "expandHint": "Yarış sonuçlarını göster",
@@ -88,7 +100,9 @@
     "raceResultSkippedAria": "{{round}}. yarış {{code}}: yarış çıkarıldı",
     "raceSkippedSuffix": "çıkarıldı",
     "closeSheet": "Pilot ayrıntılarını kapat",
+    "closeSheetConstructors": "Takım ayrıntılarını kapat",
     "sheetBodyAria": "Pilot istatistikleri ve yarış sonuçları",
+    "sheetBodyAriaConstructors": "Takım istatistikleri ve yarış sonuçları",
     "raceTableAria": "Yarış yarış sonuçlar"
   },
   "compare": {
@@ -101,12 +115,15 @@
     "altListAria": "{{system}} kurallarıyla şampiyona sıralaması",
     "altListAria_custom": "Özel kurallarla şampiyona sıralaması",
     "inspectorHint": "Sıra değişimini görmek için bir pilotun üstüne gel, odaklan ya da seç.",
+    "inspectorHintConstructors": "Sıra değişimini görmek için bir takımın üstüne gel, odaklan ya da seç.",
     "inspectorTransition": "Gerçek: {{realPos}} ({{realPts}} puan) → {{system}}: P{{altPos}} ({{altPts}} puan)",
     "rowAria": "{{side}} {{pos}} {{driver}}, {{points}} puan"
   },
   "compareMatrix": {
     "caption": "{{season}} sezonu her puan sistemiyle",
+    "captionConstructors": "{{season}} takımlar şampiyonası her puan sistemiyle",
     "driverColumn": "Pilot",
+    "constructorColumn": "Takım",
     "sortByRealAria": "Gerçek şampiyona sırasına göre sırala",
     "sortBySystemAria": "{{system}} sırasına göre sırala",
     "sortBySystemAria_custom": "Özel sistem sırasına göre sırala",
@@ -132,6 +149,7 @@
     "clinchedAtRound": "{{surname}} şampiyonluğu {{round}}. yarışta ({{code}}) kesinleştirdi.",
     "finalRaceSentence": "Şampiyonluk son yarışta belli oldu.",
     "driversLabel": "Pilotlar",
+    "constructorsLabel": "Takımlar",
     "shownCount": "{{count}} gösteriliyor",
     "top5Button": "İlk 5",
     "clearButton": "Temizle",
@@ -139,8 +157,10 @@
     "srTableCaption": "{{season}} için yarış yarış toplam puanlar ({{system}} kuralları)",
     "srTableCaption_custom": "{{season}} için yarış yarış toplam puanlar (Özel)",
     "srDriverColumn": "Pilot",
+    "srConstructorColumn": "Takım",
     "empty": "Bu sezon için puan gelişimi verisi yok.",
-    "noDriversSelected": "Puan gelişimini görmek için aşağıdan bir ya da daha fazla pilot seç."
+    "noDriversSelected": "Puan gelişimini görmek için aşağıdan bir ya da daha fazla pilot seç.",
+    "noConstructorsSelected": "Puan gelişimini görmek için aşağıdan bir ya da daha fazla takım seç."
   },
   "rules": {
     "prefix": "{{system}} kuralları",
@@ -149,7 +169,8 @@
     "fastestLapTop": "en hızlı tur +{{points}} (ilk {{max}})",
     "sprint": "sprint {{points}}",
     "best": "en iyi {{count}}",
-    "bestHalves": "en iyi {{firstCount}}/{{firstHalfRaces}} + {{secondCount}}"
+    "bestHalves": "en iyi {{firstCount}}/{{firstHalfRaces}} + {{secondCount}}",
+    "bestCarOnly": "Her yarışta takımın sadece en iyi aracı puan alır"
   },
   "validation": {
     "customPointsEmpty": "Virgülle ayrılmış 1 ile 40 arasında puan değeri gir.",
@@ -230,12 +251,16 @@
   "notes": {
     "heading": "Bu puanlar hakkında",
     "more": "Puanlama nasıl modellendi",
+    "best-car-only": "Her yarışta takımın sadece en iyi aracı puan alır",
     "half-points": "Kısa kalan bir yarış yarım puan verdi, bu yüzden bazı toplamlar ,5 ile bitiyor.",
     "double-points": "2014 Abu Dabi finali çift puan verdi.",
     "shared-points": "Aracı ya da en hızlı turu paylaşan pilotlar puanları o dönemdeki gibi bölüştü, bu yüzden bazı toplamlar uzun ondalıklı.",
+    "shared-points-constructors": "Bir araç ya da en hızlı tur paylaşıldığında puanlar o dönemdeki gibi bölündü, bu yüzden bazı takım toplamları uzun ondalıklı.",
     "sprint-assumed": "Bu sistemde sprint yarışı yoktu; AlterF1 sprintlere 3-2-1 veriyor (F1'in 2021'deki ilk sprint kuralı).",
     "best-scaled": "Bu sistem pilotun sadece en iyi sonuçlarını sayıyordu; sayılan sonuç adedi bu sezonun uzunluğuna göre ölçeklendi.",
-    "ineligible": "Bazı pilotlar puan alamadı (F2 araçları, kayıt dışı araçlar ya da cezalar), tıpkı gerçek sezondaki gibi."
+    "best-scaled-constructors": "Bu sistem her takımın sadece en iyi sonuçlarını sayıyordu; sayılan sonuç adedi bu sezonun uzunluğuna göre ölçeklendi.",
+    "ineligible": "Bazı pilotlar puan alamadı (F2 araçları, kayıt dışı araçlar ya da cezalar), tıpkı gerçek sezondaki gibi.",
+    "ineligible-constructors": "Bazı takımlar ya da araçlar bu sezon şampiyonadan ihraç edildi veya puan alamadı (F2 araçları, kayıt dışı araçlar ya da cezalar); puanları sayılmaz."
   },
   "home": {
     "title": "Aynı yarışlar. Farklı kurallar.",
@@ -250,6 +275,7 @@
     "realFinish": "{{surname}} P{{position}}",
     "pickerHeading": "Ya da herhangi bir sezonu aç",
     "pickerHint": "Bir yıl seç, sıralamasını her sistemle gör.",
+    "constructorsLink": "{{year}} takımlar",
     "loadError": "Öne çıkan sezonlar yüklenemedi."
   },
   "about": {
@@ -267,6 +293,8 @@
     "system2010": "2019–24 arası ilk 10'da bitiren pilota en hızlı tur için +1. Sprint puanları her sezonda kullanıldığı gibi.",
     "eraHeading": "Bir sistem kendi dönemi dışında",
     "eraBody": "Kendi döneminde her sistem o sezonun birebir tarihi kurallarını uygular. Dönemi dışında AlterF1 sayılan sonuçların oranını korur: 1961 sistemi 16 yarıştan en iyi 11'ini sayar, bu yüzden 2021'in 22 yarışında en iyi 15'ini sayar.",
+    "constructorsHeading": "Takımlar şampiyonası",
+    "constructorsBody": "Takımlar şampiyonası seçilen puan sisteminin kurallarını izler: her sistem kendi döneminde o sezonun gerçek takım kurallarını — 1958–78 arasında her yarışta takımın sadece en iyi aracının puan alması dahil — dönemi dışında ise kanonik kurallarını uygular. Takımlar gerçek şampiyonadaki gibi şasi ve motor bileşimiyle gruplanır (örneğin Cooper-Climax ile Cooper-Maserati ayrı sayılır). Takımlar şampiyonası 1958'de başladığı için daha önceki sezonlar alternatif hesaplama olarak gösterilir.",
     "notesHeading": "Bazı puanlar neden alışılmadık",
     "halfPointsHeading": "Yarım puan",
     "halfPointsBody": "Kısa kalan yarışlar (2021 Belçika, 1975 İspanya, 1991 Avustralya) yarım puan verdi. Varsayılan \"Tarihe sadık\" paket bunu her sistemde uygular; 1991 kurallarıyla 4.lük 1,5, 6.lık 0,5 puan olur. Senaryo panelinde \"Saf sistem\"i seçerek kapatabilirsin.",

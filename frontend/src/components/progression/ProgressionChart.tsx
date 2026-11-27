@@ -10,15 +10,18 @@ import {
   YAxis,
 } from 'recharts'
 import type { TooltipContentProps } from 'recharts'
-import type { ProgressionDriver, ProgressionResponse } from '../../api/types'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { systemContext, systemLabel } from '../../i18n/system'
-import { fallbackDriverCode, formatPoints, getSurname } from '../../lib/format'
+import type {
+  NormalizedProgressionData,
+  NormalizedProgressionEntry,
+} from '../../lib/championship'
+import { formatPoints } from '../../lib/format'
 import {
   DEFAULT_VISIBLE_LIMIT,
-  computeLineStyles,
-  defaultVisible,
-  toChartRows,
+  buildChartRows,
+  computeEntryLineStyles,
+  defaultVisibleEntries,
 } from '../../lib/progression'
 import type { DriverLineStyle, ProgressionChartRow } from '../../lib/progression'
 import { teamColor } from '../../lib/teamColors'
@@ -33,7 +36,7 @@ const DEFAULT_ACTIVE_DOT_STYLE = {
 }
 
 interface ProgressionChartProps {
-  data: ProgressionResponse
+  data: NormalizedProgressionData
   realChampionId: string | null
   isDesktop: boolean
   scenarioKey: string
@@ -46,9 +49,10 @@ export function ProgressionChart({
   scenarioKey,
 }: ProgressionChartProps) {
   const { t } = useTranslation()
+  const isConstructors = data.mode === 'constructors'
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
-  const resetScope = `${data.season}:${data.system}:${scenarioKey}`
+  const resetScope = `${data.mode}:${data.season}:${data.system}:${scenarioKey}`
   const [prevScope, setPrevScope] = useState(resetScope)
   const [selectedIds, setSelectedIds] = useState<string[] | null>(null)
   if (resetScope !== prevScope) {
@@ -58,26 +62,29 @@ export function ProgressionChart({
 
   const activeVisibleIds = useMemo(() => {
     if (selectedIds === null) {
-      return defaultVisible(data, realChampionId)
+      return defaultVisibleEntries(data.entries, realChampionId)
     }
-    const validIds = new Set(data.drivers.map((driver) => driver.driverId))
+    const validIds = new Set(data.entries.map((entry) => entry.id))
     return selectedIds.filter((id) => validIds.has(id))
-  }, [data, realChampionId, selectedIds])
+  }, [data.entries, realChampionId, selectedIds])
 
   const visibleSet = useMemo(() => new Set(activeVisibleIds), [activeVisibleIds])
-  const chartRows = useMemo(() => toChartRows(data), [data])
+  const chartRows = useMemo(
+    () => buildChartRows(data.races, data.entries),
+    [data.races, data.entries],
+  )
   const lineStyles = useMemo(
-    () => computeLineStyles(data.drivers, visibleSet),
-    [data.drivers, visibleSet],
+    () => computeEntryLineStyles(data.entries, visibleSet),
+    [data.entries, visibleSet],
   )
 
-  const driverById = useMemo(() => {
-    const map = new Map<string, ProgressionDriver>()
-    for (const driver of data.drivers) {
-      map.set(driver.driverId, driver)
+  const entryById = useMemo(() => {
+    const map = new Map<string, NormalizedProgressionEntry>()
+    for (const entry of data.entries) {
+      map.set(entry.id, entry)
     }
     return map
-  }, [data.drivers])
+  }, [data.entries])
 
   const raceCodeByRound = useMemo(() => {
     const map = new Map<number, string>()
@@ -89,15 +96,15 @@ export function ProgressionChart({
 
   const yAxisDomain = useMemo<[number, number]>(() => {
     let max = 0
-    for (const driver of data.drivers) {
-      for (const pts of driver.points) {
+    for (const entry of data.entries) {
+      for (const pts of entry.points) {
         if (Number.isFinite(pts) && pts > max) {
           max = pts
         }
       }
     }
     return [0, max > 0 ? max : 1]
-  }, [data.drivers])
+  }, [data.entries])
 
   const lineDotStyles = useMemo(() => {
     const map = new Map<
@@ -107,19 +114,19 @@ export function ProgressionChart({
         activeDot: { r: number; stroke: string; strokeWidth: number; fill: string }
       }
     >()
-    for (const driver of data.drivers) {
-      const color = teamColor(driver.constructorId)
-      map.set(driver.driverId, {
+    for (const entry of data.entries) {
+      const color = teamColor(entry.constructorId)
+      map.set(entry.id, {
         dot: { r: 2.5, strokeWidth: 0, fill: color },
         activeDot: { r: 5, stroke: '#0b0d10', strokeWidth: 1.5, fill: color },
       })
     }
     return map
-  }, [data.drivers])
+  }, [data.entries])
 
-  const visibleDrivers = useMemo(
-    () => data.drivers.filter((driver) => visibleSet.has(driver.driverId)),
-    [data.drivers, visibleSet],
+  const visibleEntries = useMemo(
+    () => data.entries.filter((entry) => visibleSet.has(entry.id)),
+    [data.entries, visibleSet],
   )
 
   const clinchIndex = useMemo(
@@ -137,8 +144,8 @@ export function ProgressionChart({
     if (data.clinch === null) {
       return t('progression.finalRaceSentence')
     }
-    const clincher = driverById.get(data.clinch.driverId)
-    const surname = clincher ? getSurname(clincher.driverName) : data.clinch.driverId
+    const clincher = entryById.get(data.clinch.entryId)
+    const surname = clincher ? clincher.shortName : data.clinch.entryId
     const racesRemaining =
       clinchIndex >= 0 ? Math.max(0, data.races.length - 1 - clinchIndex) : 0
     return racesRemaining > 0
@@ -153,9 +160,9 @@ export function ProgressionChart({
           round: data.clinch.round,
           code: data.clinch.code,
         })
-  }, [clinchIndex, data.clinch, data.races, driverById, t])
+  }, [clinchIndex, data.clinch, data.races, entryById, t])
 
-  if (data.races.length === 0 || data.drivers.length === 0) {
+  if (data.races.length === 0 || data.entries.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted">
         {t('progression.empty')}
@@ -163,20 +170,18 @@ export function ProgressionChart({
     )
   }
 
-  function handleToggleDriver(driverId: string) {
+  function handleToggleEntry(entryId: string) {
     setSelectedIds((prev) => {
-      const current = prev ?? defaultVisible(data, realChampionId)
-      if (current.includes(driverId)) {
-        return current.filter((id) => id !== driverId)
+      const current = prev ?? defaultVisibleEntries(data.entries, realChampionId)
+      if (current.includes(entryId)) {
+        return current.filter((id) => id !== entryId)
       }
-      return [...current, driverId]
+      return [...current, entryId]
     })
   }
 
   function handleSelectTop5() {
-    setSelectedIds(
-      data.drivers.slice(0, DEFAULT_VISIBLE_LIMIT).map((driver) => driver.driverId),
-    )
+    setSelectedIds(data.entries.slice(0, DEFAULT_VISIBLE_LIMIT).map((entry) => entry.id))
   }
 
   function handleClear() {
@@ -196,9 +201,11 @@ export function ProgressionChart({
       )}
 
       <div className="rounded-lg border border-border bg-surface p-3 sm:p-4">
-        {visibleDrivers.length === 0 && (
+        {visibleEntries.length === 0 && (
           <p className="mb-2 text-center text-xs text-muted">
-            {t('progression.noDriversSelected')}
+            {isConstructors
+              ? t('progression.noConstructorsSelected')
+              : t('progression.noDriversSelected')}
           </p>
         )}
 
@@ -249,7 +256,7 @@ export function ProgressionChart({
               content={(tooltipProps) => (
                 <ProgressionTooltip
                   tooltipProps={tooltipProps}
-                  driverById={driverById}
+                  entryById={entryById}
                   lineStyles={lineStyles}
                   raceCodeByRound={raceCodeByRound}
                 />
@@ -272,16 +279,16 @@ export function ProgressionChart({
               />
             )}
 
-            {visibleDrivers.map((driver) => {
-              const style = lineStyles.get(driver.driverId) ?? DEFAULT_LINE_STYLE
-              const dotStyle = lineDotStyles.get(driver.driverId)
+            {visibleEntries.map((entry) => {
+              const style = lineStyles.get(entry.id) ?? DEFAULT_LINE_STYLE
+              const dotStyle = lineDotStyles.get(entry.id)
 
               return (
                 <Line
-                  key={driver.driverId}
+                  key={entry.id}
                   type="linear"
-                  dataKey={driver.driverId}
-                  name={fallbackDriverCode(driver.driverCode, driver.driverName)}
+                  dataKey={entry.id}
+                  name={entry.code ?? entry.name}
                   stroke={style.color}
                   strokeWidth={2}
                   strokeDasharray={style.dashArray}
@@ -305,7 +312,11 @@ export function ProgressionChart({
           </caption>
           <thead>
             <tr>
-              <th scope="col">{t('progression.srDriverColumn')}</th>
+              <th scope="col">
+                {isConstructors
+                  ? t('progression.srConstructorColumn')
+                  : t('progression.srDriverColumn')}
+              </th>
               {data.races.map((race) => (
                 <th key={race.round} scope="col">
                   {t('progression.tooltipRound', { round: race.round, code: race.code })}
@@ -314,11 +325,11 @@ export function ProgressionChart({
             </tr>
           </thead>
           <tbody>
-            {visibleDrivers.map((driver) => (
-              <tr key={driver.driverId}>
-                <th scope="row">{driver.driverName}</th>
+            {visibleEntries.map((entry) => (
+              <tr key={entry.id}>
+                <th scope="row">{entry.name}</th>
                 {data.races.map((race, raceIndex) => (
-                  <td key={race.round}>{formatPoints(driver.points[raceIndex] ?? 0)}</td>
+                  <td key={race.round}>{formatPoints(entry.points[raceIndex] ?? 0)}</td>
                 ))}
               </tr>
             ))}
@@ -330,10 +341,12 @@ export function ProgressionChart({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-              {t('progression.driversLabel')}
+              {isConstructors
+                ? t('progression.constructorsLabel')
+                : t('progression.driversLabel')}
             </span>
             <span className="text-xs tabular-nums text-muted">
-              {t('progression.shownCount', { count: visibleDrivers.length })}
+              {t('progression.shownCount', { count: visibleEntries.length })}
             </span>
           </div>
 
@@ -348,7 +361,7 @@ export function ProgressionChart({
             <button
               type="button"
               onClick={handleClear}
-              disabled={visibleDrivers.length === 0}
+              disabled={visibleEntries.length === 0}
               className="cursor-pointer rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:border-[#3a4250] hover:bg-surface-2 hover:text-text disabled:cursor-not-allowed disabled:opacity-45"
             >
               {t('progression.clearButton')}
@@ -357,23 +370,22 @@ export function ProgressionChart({
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {data.drivers.map((driver) => {
-            const isVisible = visibleSet.has(driver.driverId)
-            const style = lineStyles.get(driver.driverId) ?? {
+          {data.entries.map((entry) => {
+            const isVisible = visibleSet.has(entry.id)
+            const style = lineStyles.get(entry.id) ?? {
               color: '#9aa1ab',
               dashArray: undefined,
             }
-            const code = fallbackDriverCode(driver.driverCode, driver.driverName)
             const finalPoints =
-              driver.points.length > 0 ? driver.points[driver.points.length - 1] : 0
+              entry.points.length > 0 ? entry.points[entry.points.length - 1] : 0
 
             return (
               <button
-                key={driver.driverId}
+                key={entry.id}
                 type="button"
                 aria-pressed={isVisible}
-                title={driver.driverName}
-                onClick={() => handleToggleDriver(driver.driverId)}
+                title={entry.name}
+                onClick={() => handleToggleEntry(entry.id)}
                 className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
                   isVisible
                     ? 'border-[#3a4250] bg-surface-2 text-text'
@@ -398,8 +410,14 @@ export function ProgressionChart({
                     strokeDasharray={style.dashArray}
                   />
                 </svg>
-                <span className="font-bold uppercase tracking-[0.06em]">{code}</span>
-                <span className="sr-only"> ({driver.driverName})</span>
+                {entry.code !== null ? (
+                  <>
+                    <span className="font-bold uppercase tracking-[0.06em]">{entry.code}</span>
+                    <span className="sr-only"> ({entry.name})</span>
+                  </>
+                ) : (
+                  <span className="font-semibold">{entry.name}</span>
+                )}
                 <span className="tabular-nums text-muted">{formatPoints(finalPoints)}</span>
               </button>
             )
@@ -412,14 +430,14 @@ export function ProgressionChart({
 
 interface ProgressionTooltipProps {
   tooltipProps: TooltipContentProps
-  driverById: ReadonlyMap<string, ProgressionDriver>
+  entryById: ReadonlyMap<string, NormalizedProgressionEntry>
   lineStyles: ReadonlyMap<string, DriverLineStyle>
   raceCodeByRound: ReadonlyMap<number, string>
 }
 
 function ProgressionTooltip({
   tooltipProps,
-  driverById,
+  entryById,
   lineStyles,
   raceCodeByRound,
 }: ProgressionTooltipProps) {
@@ -447,17 +465,17 @@ function ProgressionTooltip({
         !entry.hide && typeof entry.value === 'number' && Number.isFinite(entry.value),
     )
     .map((entry) => {
-      const driverId = typeof entry.dataKey === 'string' ? entry.dataKey : ''
-      const driver = driverById.get(driverId)
-      const style = lineStyles.get(driverId)
-      const code = driver
-        ? fallbackDriverCode(driver.driverCode, driver.driverName)
-        : String(entry.name ?? driverId)
+      const entryId = typeof entry.dataKey === 'string' ? entry.dataKey : ''
+      const item = entryById.get(entryId)
+      const style = lineStyles.get(entryId)
+      const isDriverCode = item ? item.code !== null : false
+      const displayLabel = item ? (item.code ?? item.name) : String(entry.name ?? entryId)
       return {
-        driverId,
-        code,
+        entryId,
+        displayLabel,
+        isDriverCode,
         value: entry.value as number,
-        position: driver?.position ?? Number.POSITIVE_INFINITY,
+        position: item?.position ?? Number.POSITIVE_INFINITY,
         color: style?.color ?? entry.color ?? '#e8eaed',
         dashArray: style?.dashArray,
       }
@@ -481,7 +499,7 @@ function ProgressionTooltip({
       <ul className="m-0 list-none space-y-1 p-0">
         {items.map((item) => (
           <li
-            key={item.driverId || item.code}
+            key={item.entryId || item.displayLabel}
             className="flex items-center justify-between gap-4 tabular-nums"
           >
             <span className="inline-flex items-center gap-1.5">
@@ -502,8 +520,14 @@ function ProgressionTooltip({
                   strokeDasharray={item.dashArray}
                 />
               </svg>
-              <span className="font-bold uppercase tracking-[0.06em] text-text">
-                {item.code}
+              <span
+                className={
+                  item.isDriverCode
+                    ? 'font-bold uppercase tracking-[0.06em] text-text'
+                    : 'font-semibold text-text'
+                }
+              >
+                {item.displayLabel}
               </span>
             </span>
             <span className="font-semibold text-text">{formatPoints(item.value)}</span>

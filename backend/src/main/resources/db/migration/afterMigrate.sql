@@ -10,6 +10,7 @@
 DROP VIEW IF EXISTS alterf1.season_race_results;
 DROP VIEW IF EXISTS alterf1.season_champions;
 DROP VIEW IF EXISTS alterf1.season_driver_standings;
+DROP VIEW IF EXISTS alterf1.season_constructor_standings;
 DROP VIEW IF EXISTS alterf1.seasons;
 DROP VIEW IF EXISTS alterf1.season_fastest_laps;
 
@@ -43,12 +44,14 @@ SELECT
     -- Points actually awarded at the time (NULL = none). Used to verify the engine.
     d.race_points                                 AS actual_points,
     gp.abbreviation                               AS grand_prix_code,  -- 'BRA', 'GBR', ...
-    con.name                                      AS constructor_name
+    con.name                                      AS constructor_name,
+    em.name                                       AS engine_manufacturer_name
 FROM f1db.race_data d
-JOIN f1db.race        r   ON r.id = d.race_id
-JOIN f1db.grand_prix  gp  ON gp.id = r.grand_prix_id
-JOIN f1db.driver      drv ON drv.id = d.driver_id
-JOIN f1db.constructor con ON con.id = d.constructor_id
+JOIN f1db.race                r   ON r.id = d.race_id
+JOIN f1db.grand_prix          gp  ON gp.id = r.grand_prix_id
+JOIN f1db.driver              drv ON drv.id = d.driver_id
+JOIN f1db.constructor         con ON con.id = d.constructor_id
+JOIN f1db.engine_manufacturer em  ON em.id = d.engine_manufacturer_id
 WHERE d.type IN ('RACE_RESULT', 'SPRINT_RACE_RESULT');
 
 -- Real drivers' champion of each season (what actually happened).
@@ -77,6 +80,23 @@ SELECT
 FROM f1db.season_driver_standing s
 JOIN f1db.driver drv ON drv.id = s.driver_id;
 
+-- The real final constructors' standings of each season (1958+; counted points, after dropped scores).
+CREATE VIEW alterf1.season_constructor_standings WITH (security_invoker = true) AS
+SELECT
+    s.year,
+    s.position_display_order,
+    s.position_number,
+    s.position_text,
+    s.constructor_id,
+    con.name AS constructor_name,
+    s.engine_manufacturer_id,
+    em.name  AS engine_manufacturer_name,
+    s.points,
+    s.championship_won
+FROM f1db.season_constructor_standing s
+JOIN f1db.constructor         con ON con.id = s.constructor_id
+JOIN f1db.engine_manufacturer em  ON em.id = s.engine_manufacturer_id;
+
 -- Seasons that have at least one race result. Cheap: no joins to drivers/constructors.
 CREATE VIEW alterf1.seasons WITH (security_invoker = true) AS
 SELECT s.year
@@ -94,4 +114,4 @@ JOIN f1db.race r ON r.id = d.race_id
 WHERE d.type = 'FASTEST_LAP' AND d.position_number IS NOT NULL;
 
 GRANT SELECT ON alterf1.season_race_results, alterf1.season_champions, alterf1.season_driver_standings,
-    alterf1.seasons, alterf1.season_fastest_laps TO ${roUser};
+    alterf1.season_constructor_standings, alterf1.seasons, alterf1.season_fastest_laps TO ${roUser};

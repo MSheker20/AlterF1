@@ -130,4 +130,40 @@ test.describe('AlterF1 smoke tests', () => {
     await expect(f1dbLink).toBeVisible()
     await expect(f1dbLink).toHaveAttribute('href', 'https://github.com/f1db/f1db')
   })
+
+  test('constructors switch preserves query string, loads compare/progression, and marks pre-1958 as alternative', async ({
+    page,
+  }) => {
+    await page.goto('/season/1988?system=1991')
+
+    const champNav = page.getByRole('navigation', { name: 'Championship' })
+    await champNav.getByRole('link', { name: 'Constructors' }).click()
+
+    await expect(page).toHaveURL(/\/season\/1988\/constructors\?system=1991$/)
+    await expect(page.getByRole('heading', { level: 1, name: '1988 constructors' })).toBeVisible()
+
+    const firstTeamRow = page
+      .getByRole('list', { name: 'Constructor standings' })
+      .getByRole('listitem')
+      .first()
+    await expect(firstTeamRow).toContainText('McLaren')
+
+    const tabsNav = page.getByRole('navigation', { name: 'Season views' })
+    await tabsNav.getByRole('link', { name: 'Compare' }).click()
+    await expect(page).toHaveURL(/\/season\/1988\/constructors\/compare\?system=1991$/)
+    await expect(
+      page.getByRole('table', { name: 'How each points system ranks the 1988 constructors' }),
+    ).toBeVisible()
+
+    await tabsNav.getByRole('link', { name: 'Progression' }).click()
+    await expect(page).toHaveURL(/\/season\/1988\/constructors\/progression\?system=1991$/)
+    const progressionSection = page.getByRole('region', { name: 'Points progression chart' })
+    await expect(progressionSection.locator('div[aria-hidden="true"] svg').first()).toBeVisible()
+
+    // Pre-1958 seasons show the alternative badge and hide real-position deltas.
+    await page.goto('/season/1955/constructors?system=1950')
+    await expect(
+      page.getByText("Alternative — the constructors' championship began in 1958"),
+    ).toBeVisible()
+  })
 })

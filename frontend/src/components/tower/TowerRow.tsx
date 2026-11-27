@@ -2,12 +2,14 @@ import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
 import type { RaceSummary, StandingRow } from '../../api/types'
 import { systemContext, systemLabel } from '../../i18n/system'
+import { isDriverStanding } from '../../lib/championship'
+import type { StandingEntry } from '../../lib/championship'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 import { RaceResultsGrid } from './RaceResultsGrid'
 
-interface TowerRowProps {
-  row: StandingRow
+interface TowerRowProps<T extends StandingEntry = StandingRow> {
+  row: T
   races: readonly RaceSummary[]
   season: number
   systemId: string
@@ -15,7 +17,8 @@ interface TowerRowProps {
   isExpanded: boolean
   isSelected: boolean
   flashDirection: 'up' | 'down' | null
-  onSelect: (row: StandingRow, triggerEl: HTMLButtonElement) => void
+  hideDelta?: boolean
+  onSelect: (row: T, triggerEl: HTMLButtonElement) => void
 }
 
 const ROW_EASE = [0.2, 0.8, 0.2, 1] as const
@@ -23,7 +26,7 @@ const ROW_TRANSITION = {
   layout: { duration: 0.6, ease: ROW_EASE },
 }
 
-export function TowerRow({
+export function TowerRow<T extends StandingEntry = StandingRow>({
   row,
   races,
   season,
@@ -32,12 +35,15 @@ export function TowerRow({
   isExpanded,
   isSelected,
   flashDirection,
+  hideDelta = false,
   onSelect,
-}: TowerRowProps) {
+}: TowerRowProps<T>) {
   const { t } = useTranslation()
+  const isDriver = isDriverStanding(row)
   const color = teamColor(row.constructorId)
   const delta = deltaLabel(t, row.positionChange)
-  const code = fallbackDriverCode(row.driverCode, row.driverName)
+  const displayName = isDriver ? row.driverName : row.teamName
+  const code = isDriver ? fallbackDriverCode(row.driverCode, row.driverName) : null
 
   const deltaColorClass =
     delta.direction === 'up'
@@ -53,6 +59,10 @@ export function TowerRow({
         ? 'tower-flash-down'
         : ''
 
+  const gridColsClass = hideDelta
+    ? 'grid-cols-[28px_4px_minmax(0,1fr)_56px]'
+    : 'grid-cols-[28px_4px_minmax(0,1fr)_56px_44px]'
+
   return (
     <motion.li
       layout="position"
@@ -61,10 +71,10 @@ export function TowerRow({
     >
       <button
         type="button"
-        title={row.driverName}
+        title={displayName}
         aria-expanded={isDesktop ? isExpanded : undefined}
         onClick={(event) => onSelect(row, event.currentTarget)}
-        className={`grid h-11 w-full cursor-pointer grid-cols-[28px_4px_minmax(0,1fr)_56px_44px] items-center gap-x-2.5 px-3.5 text-left transition-colors hover:bg-surface focus-visible:bg-surface focus-visible:outline-offset-[-2px] ${
+        className={`grid h-11 w-full cursor-pointer ${gridColsClass} items-center gap-x-2.5 px-3.5 text-left transition-colors hover:bg-surface focus-visible:bg-surface focus-visible:outline-offset-[-2px] ${
           isExpanded || isSelected ? 'bg-surface' : ''
         } ${flashClass}`}
       >
@@ -82,24 +92,32 @@ export function TowerRow({
           style={{ backgroundColor: color }}
         />
 
-        <span className="flex min-w-0 flex-col justify-center gap-0.5">
-          <span className="truncate text-sm font-extrabold uppercase leading-none tracking-[0.08em] text-text">
-            <span>{code}</span>
-            <span className="sr-only"> ({row.driverName})</span>
+        {isDriver ? (
+          <span className="flex min-w-0 flex-col justify-center gap-0.5">
+            <span className="truncate text-sm font-extrabold uppercase leading-none tracking-[0.08em] text-text">
+              <span>{code}</span>
+              <span className="sr-only"> ({row.driverName})</span>
+            </span>
+            <span className="truncate text-[11px] leading-none text-muted">
+              {row.constructorName}
+            </span>
           </span>
-          <span className="truncate text-[11px] leading-none text-muted">
-            {row.constructorName}
+        ) : (
+          <span className="truncate text-sm font-bold leading-tight text-text">
+            {row.teamName}
           </span>
-        </span>
+        )}
 
         <span className="text-right text-sm font-bold tabular-nums text-text">
           {formatPoints(row.points)}
         </span>
 
-        <span className={`text-right text-xs tabular-nums ${deltaColorClass}`}>
-          <span aria-hidden="true">{delta.text}</span>
-          <span className="sr-only">{delta.ariaLabel}</span>
-        </span>
+        {!hideDelta && (
+          <span className={`text-right text-xs tabular-nums ${deltaColorClass}`}>
+            <span aria-hidden="true">{delta.text}</span>
+            <span className="sr-only">{delta.ariaLabel}</span>
+          </span>
+        )}
       </button>
 
       {isDesktop && isExpanded && (
@@ -111,26 +129,26 @@ export function TowerRow({
                 className="h-4 w-1 shrink-0 rounded-[2px]"
                 style={{ backgroundColor: color }}
               />
-              <span className="truncate text-sm font-semibold text-text">
-                {row.driverName}
-              </span>
-              <span className="text-xs text-muted">{row.constructorName}</span>
+              <span className="truncate text-sm font-semibold text-text">{displayName}</span>
+              {isDriver && <span className="text-xs text-muted">{row.constructorName}</span>}
             </div>
 
             <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs tabular-nums text-muted">
-              <div className="flex items-baseline gap-1">
-                <dt>{t('detail.realLabel', { season })}:</dt>
-                <dd className="font-semibold text-text">
-                  {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}{' '}
-                  <span className="font-normal text-muted">
-                    (
-                    {row.realPosition !== null
-                      ? t('detail.positionBadge', { position: row.realPosition })
-                      : t('detail.unclassified')}
-                    )
-                  </span>
-                </dd>
-              </div>
+              {!hideDelta && (
+                <div className="flex items-baseline gap-1">
+                  <dt>{t('detail.realLabel', { season })}:</dt>
+                  <dd className="font-semibold text-text">
+                    {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}{' '}
+                    <span className="font-normal text-muted">
+                      (
+                      {row.realPosition !== null
+                        ? t('detail.positionBadge', { position: row.realPosition })
+                        : t('detail.unclassified')}
+                      )
+                    </span>
+                  </dd>
+                </div>
+              )}
               <div className="flex items-baseline gap-1">
                 <dt>
                   {t('detail.systemLabel', {

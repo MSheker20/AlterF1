@@ -1,14 +1,20 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ApiError } from '../api/client'
 import { useProgression } from '../api/compare'
-import type { ProgressionResponse } from '../api/types'
+import { useConstructorProgression } from '../api/constructors'
 import { ProgressionChart } from '../components/progression/ProgressionChart'
 import { QueryErrorState, StandingsErrorBanner } from '../components/season/ErrorPanel'
 import { useSeasonLayout } from '../components/season/seasonLayoutContext'
+import {
+  normalizeConstructorProgression,
+  normalizeDriverProgression,
+} from '../lib/championship'
+import type { NormalizedProgressionData } from '../lib/championship'
 import { scenarioToParams } from '../lib/scenario'
 
 export function ProgressionTab() {
   const {
+    mode,
     year,
     scenario,
     isDesktop,
@@ -19,24 +25,46 @@ export function ProgressionTab() {
     refetchStandings,
     realChampionId,
   } = useSeasonLayout()
-  const progressionQuery = useProgression(year, scenario)
+
+  const driverProgressionQuery = useProgression(mode === 'drivers' ? year : null, scenario)
+  const constructorProgressionQuery = useConstructorProgression(
+    mode === 'constructors' ? year : null,
+    scenario,
+  )
+  const activeQuery =
+    mode === 'constructors' ? constructorProgressionQuery : driverProgressionQuery
   const scenarioKey = scenarioToParams(scenario).toString()
 
-  const [lastProgression, setLastProgression] = useState<ProgressionResponse | null>(null)
+  const normalizedData = useMemo<NormalizedProgressionData | null>(() => {
+    if (mode === 'constructors') {
+      return constructorProgressionQuery.data
+        ? normalizeConstructorProgression(constructorProgressionQuery.data)
+        : null
+    }
+    return driverProgressionQuery.data
+      ? normalizeDriverProgression(driverProgressionQuery.data)
+      : null
+  }, [mode, constructorProgressionQuery.data, driverProgressionQuery.data])
+
+  const [lastProgression, setLastProgression] = useState<NormalizedProgressionData | null>(null)
   if (
-    progressionQuery.data &&
-    progressionQuery.data.season === year &&
-    progressionQuery.data !== lastProgression
+    normalizedData &&
+    normalizedData.season === year &&
+    normalizedData.mode === mode &&
+    normalizedData !== lastProgression
   ) {
-    setLastProgression(progressionQuery.data)
-  } else if (lastProgression !== null && lastProgression.season !== year) {
+    setLastProgression(normalizedData)
+  } else if (
+    lastProgression !== null &&
+    (lastProgression.season !== year || lastProgression.mode !== mode)
+  ) {
     setLastProgression(null)
   }
 
-  const tabError = progressionQuery.error
+  const tabError = activeQuery.error
   const isSamePanel400 =
     scenarioOpen &&
-    progressionQuery.isError &&
+    activeQuery.isError &&
     tabError instanceof ApiError &&
     tabError.status === 400 &&
     standingsIsError &&
@@ -46,16 +74,16 @@ export function ProgressionTab() {
     standingsError.detail === tabError.detail
 
   const handledInPanel = isSamePanel400 && lastProgression !== null
-  const showPageError = progressionQuery.isError && !handledInPanel
+  const showPageError = activeQuery.isError && !handledInPanel
   const showStandingsBanner = !showPageError && showStandingsPageError
-  const displayProgression = progressionQuery.isError
+  const displayProgression = activeQuery.isError
     ? handledInPanel
       ? lastProgression
       : null
-    : (progressionQuery.data ?? null)
+    : normalizedData
 
   function handleRetry() {
-    void progressionQuery.refetch()
+    void activeQuery.refetch()
     if (standingsIsError) {
       refetchStandings()
     }
@@ -63,14 +91,14 @@ export function ProgressionTab() {
 
   return (
     <>
-      {showPageError && <QueryErrorState error={progressionQuery.error} onRetry={handleRetry} />}
+      {showPageError && <QueryErrorState error={activeQuery.error} onRetry={handleRetry} />}
 
       {showStandingsBanner && (
         <StandingsErrorBanner error={standingsError} onRetry={refetchStandings} />
       )}
 
       {!displayProgression ? (
-        progressionQuery.isError ? null : (
+        activeQuery.isError ? null : (
           <ProgressionSkeleton />
         )
       ) : (

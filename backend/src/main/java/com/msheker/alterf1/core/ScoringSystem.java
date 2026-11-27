@@ -37,6 +37,23 @@ public enum ScoringSystem {
         int canonicalRaceCount() {
             return 7; // 1950: best 4 of 7
         }
+
+        @Override
+        ConstructorRules historicalConstructors(int season) {
+            // 1958-59 fastest-lap point never counted for constructors; 1950-57 follow the 1958 shape.
+            int best = season <= 1953 ? 4 : season <= 1957 || season == 1959 ? 5 : 6;
+            return new ConstructorRules(true, new Season(best), false);
+        }
+
+        @Override
+        ConstructorRules canonicalConstructors() {
+            return historicalConstructors(1958); // 1958: best car only, best 6 of 10 non-Indy races
+        }
+
+        @Override
+        int canonicalConstructorRaceCount() {
+            return 10; // 1958 had 10 non-Indy Grands Prix
+        }
     },
 
     S1961("1961", 1961, 1990) {
@@ -54,6 +71,24 @@ public enum ScoringSystem {
         @Override
         int canonicalRaceCount() {
             return 16; // 1981-90: best 11 of 16
+        }
+
+        @Override
+        ConstructorRules historicalConstructors(int season) {
+            if (season == 1961) {
+                // In 1961 drivers moved to 9 for P1, while constructors stayed on 8-6-4-3-2-1 until 1962.
+                return new ConstructorRules(true, new Season(5), false, points(8, 6, 4, 3, 2, 1));
+            }
+            if (season <= 1978) {
+                return new ConstructorRules(true, best1961(season), false);
+            }
+            // From 1979 onwards all cars and all races counted for constructors.
+            return new ConstructorRules(false, BestResults.ALL, false);
+        }
+
+        @Override
+        ConstructorRules canonicalConstructors() {
+            return historicalConstructors(1988);
         }
     },
 
@@ -90,6 +125,11 @@ public enum ScoringSystem {
             return new ScoringRules(points(25, 18, 15, 12, 10, 8, 6, 4, 2, 1), points(8, 7, 6, 5, 4, 3, 2, 1),
                     null, BestResults.ALL, SharedDriveRule.NO_POINTS);
         }
+
+        @Override
+        ConstructorRules historicalConstructors(int season) {
+            return new ConstructorRules(false, BestResults.ALL, true);
+        }
     };
 
     /**
@@ -121,6 +161,21 @@ public enum ScoringSystem {
         return 1;
     }
 
+    /** Exact constructors' rules of a season inside this system's era. */
+    ConstructorRules historicalConstructors(int season) {
+        return new ConstructorRules(false, BestResults.ALL, false);
+    }
+
+    /** Constructors' rules applied outside the era (before best-N scaling). */
+    ConstructorRules canonicalConstructors() {
+        return historicalConstructors(firstSeason);
+    }
+
+    /** Season length the canonical constructors' best-N belongs to. */
+    int canonicalConstructorRaceCount() {
+        return 1;
+    }
+
     public String id() {
         return id;
     }
@@ -146,6 +201,22 @@ public enum ScoringSystem {
         ScoringRules rules = canonical();
         if (rules.bestResults() instanceof Season(int count)) {
             int scaled = Math.round((float) raceCount * count / canonicalRaceCount());
+            rules = rules.withBestResults(new Season(Math.clamp(scaled, 1, Math.max(1, raceCount))));
+        }
+        return rules;
+    }
+
+    /**
+     * The constructors' rules this system applies to {@code season}, which has {@code raceCount}
+     * counting (non-Indy) Grands Prix.
+     */
+    public ConstructorRules constructorRulesFor(int season, int raceCount) {
+        if (covers(season)) {
+            return historicalConstructors(season);
+        }
+        ConstructorRules rules = canonicalConstructors();
+        if (rules.bestResults() instanceof Season(int count)) {
+            int scaled = Math.round((float) raceCount * count / canonicalConstructorRaceCount());
             rules = rules.withBestResults(new Season(Math.clamp(scaled, 1, Math.max(1, raceCount))));
         }
         return rules;

@@ -1,4 +1,4 @@
-import type { ProgressionDriver, ProgressionResponse } from '../api/types'
+import type { ProgressionDriver, ProgressionRace, ProgressionResponse } from '../api/types'
 import { teamColor } from './teamColors'
 
 export const DEFAULT_VISIBLE_LIMIT = 5
@@ -6,7 +6,7 @@ export const DEFAULT_VISIBLE_LIMIT = 5
 export interface ProgressionChartRow {
   race: string
   round: number
-  [driverId: string]: string | number
+  [entryId: string]: string | number
 }
 
 export interface DriverLineStyle {
@@ -14,17 +14,26 @@ export interface DriverLineStyle {
   dashArray: string | undefined
 }
 
-export function toChartRows(response: ProgressionResponse): ProgressionChartRow[] {
-  return response.races.map((race, raceIndex) => {
+export interface ProgressionSeriesEntry {
+  id: string
+  constructorId: string
+  points: readonly number[]
+}
+
+export function buildChartRows(
+  races: readonly ProgressionRace[],
+  entries: readonly ProgressionSeriesEntry[],
+): ProgressionChartRow[] {
+  return races.map((race, raceIndex) => {
     const row: ProgressionChartRow = {
       race: race.code,
       round: race.round,
     }
 
-    for (const driver of response.drivers) {
-      const value = driver.points[raceIndex]
+    for (const entry of entries) {
+      const value = entry.points[raceIndex]
       if (value !== undefined) {
-        row[driver.driverId] = value
+        row[entry.id] = value
       }
     }
 
@@ -32,41 +41,75 @@ export function toChartRows(response: ProgressionResponse): ProgressionChartRow[
   })
 }
 
-export function defaultVisible(
-  response: ProgressionResponse,
+export function defaultVisibleEntries(
+  entries: readonly { id: string }[],
   realChampionId?: string | null,
 ): string[] {
-  const top = response.drivers.slice(0, DEFAULT_VISIBLE_LIMIT).map((driver) => driver.driverId)
+  const top = entries.slice(0, DEFAULT_VISIBLE_LIMIT).map((entry) => entry.id)
   if (
     realChampionId &&
     !top.includes(realChampionId) &&
-    response.drivers.some((driver) => driver.driverId === realChampionId)
+    entries.some((entry) => entry.id === realChampionId)
   ) {
     return [...top, realChampionId]
   }
   return top
 }
 
-export function computeLineStyles(
-  drivers: readonly ProgressionDriver[],
+export function computeEntryLineStyles(
+  entries: readonly { id: string; constructorId: string }[],
   visibleIds: ReadonlySet<string>,
 ): Map<string, DriverLineStyle> {
   const teamCounts = new Map<string, number>()
   const styles = new Map<string, DriverLineStyle>()
 
-  for (const driver of drivers) {
-    const color = teamColor(driver.constructorId)
-    if (!visibleIds.has(driver.driverId)) {
-      styles.set(driver.driverId, { color, dashArray: undefined })
+  for (const entry of entries) {
+    const color = teamColor(entry.constructorId)
+    if (!visibleIds.has(entry.id)) {
+      styles.set(entry.id, { color, dashArray: undefined })
       continue
     }
 
-    const teamKey = driver.constructorId.trim().toLowerCase()
+    const teamKey = entry.constructorId.trim().toLowerCase()
     const seen = teamCounts.get(teamKey) ?? 0
     teamCounts.set(teamKey, seen + 1)
     const dashArray = seen === 0 ? undefined : seen === 1 ? '6 4' : '2 3'
-    styles.set(driver.driverId, { color, dashArray })
+    styles.set(entry.id, { color, dashArray })
   }
 
   return styles
+}
+
+export function toChartRows(response: ProgressionResponse): ProgressionChartRow[] {
+  return buildChartRows(
+    response.races,
+    response.drivers.map((driver) => ({
+      id: driver.driverId,
+      constructorId: driver.constructorId,
+      points: driver.points,
+    })),
+  )
+}
+
+export function defaultVisible(
+  response: ProgressionResponse,
+  realChampionId?: string | null,
+): string[] {
+  return defaultVisibleEntries(
+    response.drivers.map((driver) => ({ id: driver.driverId })),
+    realChampionId,
+  )
+}
+
+export function computeLineStyles(
+  drivers: readonly ProgressionDriver[],
+  visibleIds: ReadonlySet<string>,
+): Map<string, DriverLineStyle> {
+  return computeEntryLineStyles(
+    drivers.map((driver) => ({
+      id: driver.driverId,
+      constructorId: driver.constructorId,
+    })),
+    visibleIds,
+  )
 }

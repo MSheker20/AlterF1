@@ -12,6 +12,7 @@
   },
   "page": {
     "seasonHeading": "{{year}} season",
+    "constructorsHeading": "{{year}} constructors",
     "invalidSeasonTitle": "Season not found",
     "invalidSeasonDetail": "\"{{rawYear}}\" is not a valid Formula 1 season year.",
     "notFoundTitle": "Page not found",
@@ -35,6 +36,11 @@
     "towerTab": "Tower",
     "compareTab": "Compare"
   },
+  "championship": {
+    "navAriaLabel": "Championship",
+    "drivers": "Drivers",
+    "constructors": "Constructors"
+  },
   "tabs": {
     "navAriaLabel": "Season views",
     "tower": "Tower",
@@ -47,6 +53,8 @@
     "sameKicker_custom": "{{season}} · Custom rules",
     "championChanges": "Champion changes: {{champion}} ({{championPoints}}) instead of {{realChampion}} ({{realChampionPoints}})",
     "sameChampion": "Same champion: {{champion}} ({{points}})",
+    "alternativeChampion": "Alternative champion: {{champion}} ({{points}})",
+    "alternativeBadge": "Alternative — the constructors' championship began in 1958",
     "noChampion": "No champion recorded for this season",
     "activeScenarioChanges_one": "With {{count}} scenario change",
     "activeScenarioChanges_other": "With {{count}} scenario changes",
@@ -62,12 +70,16 @@
   },
   "tower": {
     "listAriaLabel": "Driver standings",
+    "listAriaLabelConstructors": "Constructor standings",
     "colPos": "Pos",
     "colDriver": "Driver",
+    "colConstructor": "Constructor",
     "colPoints": "Pts",
     "colChange": "Δ",
     "showAll": "Show all {{total}} drivers",
     "showTop": "Show top {{limit}} drivers",
+    "showAllConstructors": "Show all {{total}} constructors",
+    "showTopConstructors": "Show top {{limit}} constructors",
     "empty": "No standings data available for this season.",
     "rowPointsUnit": "pts",
     "expandHint": "Show race results",
@@ -88,7 +100,9 @@
     "raceResultSkippedAria": "Round {{round}} {{code}}: race skipped",
     "raceSkippedSuffix": "skipped",
     "closeSheet": "Close driver details",
+    "closeSheetConstructors": "Close constructor details",
     "sheetBodyAria": "Driver statistics and race results",
+    "sheetBodyAriaConstructors": "Constructor statistics and race results",
     "raceTableAria": "Per-race results"
   },
   "compare": {
@@ -101,12 +115,15 @@
     "altListAria": "{{system}} rules championship order",
     "altListAria_custom": "Custom rules championship order",
     "inspectorHint": "Hover, focus, or select a driver to inspect position change.",
+    "inspectorHintConstructors": "Hover, focus, or select a constructor to inspect position change.",
     "inspectorTransition": "Real: {{realPos}} ({{realPts}} pts) → {{system}}: P{{altPos}} ({{altPts}} pts)",
     "rowAria": "{{side}} {{pos}} {{driver}}, {{points}} points"
   },
   "compareMatrix": {
     "caption": "How each points system ranks the {{season}} season",
+    "captionConstructors": "How each points system ranks the {{season}} constructors",
     "driverColumn": "Driver",
+    "constructorColumn": "Constructor",
     "sortByRealAria": "Sort by real championship position",
     "sortBySystemAria": "Sort by {{system}} position",
     "sortBySystemAria_custom": "Sort by custom system position",
@@ -132,6 +149,7 @@
     "clinchedAtRound": "{{surname}} clinched it at round {{round}} ({{code}}).",
     "finalRaceSentence": "Decided at the final race.",
     "driversLabel": "Drivers",
+    "constructorsLabel": "Constructors",
     "shownCount": "{{count}} shown",
     "top5Button": "Top 5",
     "clearButton": "Clear",
@@ -139,8 +157,10 @@
     "srTableCaption": "Cumulative points by race for {{season}} ({{system}} rules)",
     "srTableCaption_custom": "Cumulative points by race for {{season}} (Custom)",
     "srDriverColumn": "Driver",
+    "srConstructorColumn": "Constructor",
     "empty": "No progression data available for this season.",
-    "noDriversSelected": "Select one or more drivers below to show their progression."
+    "noDriversSelected": "Select one or more drivers below to show their progression.",
+    "noConstructorsSelected": "Select one or more constructors below to show their progression."
   },
   "rules": {
     "prefix": "{{system}} rules",
@@ -149,7 +169,8 @@
     "fastestLapTop": "fastest lap +{{points}} (top {{max}})",
     "sprint": "sprint {{points}}",
     "best": "best {{count}}",
-    "bestHalves": "best {{firstCount}}/{{firstHalfRaces}} + {{secondCount}}"
+    "bestHalves": "best {{firstCount}}/{{firstHalfRaces}} + {{secondCount}}",
+    "bestCarOnly": "Only each team's best-placed car scores"
   },
   "validation": {
     "customPointsEmpty": "Enter between 1 and 40 point values separated by commas.",
@@ -230,12 +251,16 @@
   "notes": {
     "heading": "About these points",
     "more": "How the scoring was modelled",
+    "best-car-only": "Only each team's best-placed car scores",
     "half-points": "A race cut short paid half points, so some totals end in .5.",
     "double-points": "The 2014 finale in Abu Dhabi paid double points.",
     "shared-points": "Drivers who shared a car, or tied for fastest lap, split the points as they did at the time, so some totals have long decimals.",
+    "shared-points-constructors": "When a car or fastest lap was shared, the points were split as they were at the time, so some team totals have long decimals.",
     "sprint-assumed": "This system had no sprint races; AlterF1 scores them 3-2-1 (F1's first sprint rule, 2021).",
     "best-scaled": "This system counted only a driver's best results; the count is scaled to this season's length.",
-    "ineligible": "Some finishers could not score (F2 cars, unregistered entries or penalties), exactly as in the real season."
+    "best-scaled-constructors": "This system counted only each team's best results; the count is scaled to this season's length.",
+    "ineligible": "Some finishers could not score (F2 cars, unregistered entries or penalties), exactly as in the real season.",
+    "ineligible-constructors": "Some teams or entries could not score (championship exclusions, F2 cars, unregistered entries or penalties); their points do not count."
   },
   "home": {
     "title": "Same races. Different rules.",
@@ -250,6 +275,7 @@
     "realFinish": "{{surname}} P{{position}}",
     "pickerHeading": "Or open any season",
     "pickerHint": "Pick a year to see its standings under every system.",
+    "constructorsLink": "{{year}} constructors",
     "loadError": "Could not load the highlights."
   },
   "about": {
@@ -267,6 +293,8 @@
     "system2010": "Fastest lap +1 for a top-10 finisher in 2019–24. Sprint points as used in each season.",
     "eraHeading": "Outside a system's own era",
     "eraBody": "In its own era each system applies that season's exact historical rules. Outside it, AlterF1 keeps the system's share of counted results: the 1961 system counts the best 11 of 16, so in 2021's 22 races it counts the best 15.",
+    "constructorsHeading": "Constructors' championship",
+    "constructorsBody": "Constructors follow the rules of the selected points system: in its own era each system applies that season's historical constructors' rules — including the 1958–78 rule where only each team's best-placed car scored — and outside it its canonical rules. Teams are grouped by chassis and engine (for example Cooper-Climax and Cooper-Maserati are scored separately), just as in the official championship. Because the constructors' championship began in 1958, earlier seasons are shown as an alternative calculation.",
     "notesHeading": "Why some points look unusual",
     "halfPointsHeading": "Half points",
     "halfPointsBody": "Races cut short (Belgium 2021, Spain 1975, Australia 1991) paid half points. The default \"Historical\" package applies them under every system, so under 1991 rules fourth place is worth 1.5 and sixth 0.5. Choose \"Pure\" in the scenario panel to turn them off.",

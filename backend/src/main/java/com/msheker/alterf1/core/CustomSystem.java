@@ -60,4 +60,12 @@ public record CustomSystem(List<BigDecimal> racePoints, boolean fastestLap, Spri
                 // Only matters in the 1950s: shared cars keep the split that really happened.
                 SharedDriveRule.SPLIT);
     }
+
+    /** Custom systems score all cars and apply the custom bestResults (or all results if unset). */
+    public ConstructorRules constructorRules() {
+        return new ConstructorRules(
+                false,
+                bestResults == null ? BestResults.ALL : new Season(bestResults),
+                fastestLap);
+    }
 }

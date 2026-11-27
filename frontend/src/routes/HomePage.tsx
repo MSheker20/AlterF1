@@ -19,6 +19,10 @@ export function HomePage() {
   const navigate = useNavigate()
   // Newest first: recent seasons are the ones most visitors remember.
   const highlights = [...(highlightsQuery.data ?? [])].reverse()
+  const latestYear =
+    seasonsQuery.data && seasonsQuery.data.length > 0
+      ? seasonsQuery.data.reduce((max, s) => Math.max(max, s.year), 0)
+      : null
 
   return (
     <SimplePage>
@@ -38,12 +42,22 @@ export function HomePage() {
             <h2 className="text-sm font-semibold text-text">{t('home.pickerHeading')}</h2>
             <p className="text-xs text-muted">{t('home.pickerHint')}</p>
           </div>
-          <YearSelect
-            seasons={seasonsQuery.data ?? []}
-            selectedYear={null}
-            disabled={!seasonsQuery.data}
-            onChange={(year) => navigate(to(`/season/${year}`))}
-          />
+          <div className="flex flex-wrap items-center gap-2.5">
+            <YearSelect
+              seasons={seasonsQuery.data ?? []}
+              selectedYear={null}
+              disabled={!seasonsQuery.data}
+              onChange={(year) => navigate(to(`/season/${year}`))}
+            />
+            {latestYear !== null && (
+              <Link
+                to={to(`/season/${latestYear}/constructors`)}
+                className="inline-flex h-9 items-center rounded-lg border border-border bg-surface-2 px-3 text-xs font-semibold tabular-nums text-text no-underline transition-colors hover:border-[#363d48] hover:bg-[#222731] sm:text-[13px]"
+              >
+                {t('home.constructorsLink', { year: latestYear })}
+              </Link>
+            )}
+          </div>
         </section>
 
         <section aria-labelledby="highlights-heading" className="space-y-4">

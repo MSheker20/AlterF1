@@ -72,6 +72,27 @@ class SeasonResultsRepositoryIT extends AbstractF1dbIntegrationTest {
         assertThat(repository.findChampion(1949)).isEmpty();
     }
 
+    @Test
+    void readsRealConstructorStandingsFrom1958OnwardsAndEngineNames() {
+        List<RealConstructorStanding> s1958 = repository.findRealConstructorStandings(1958);
+        assertThat(s1958).isNotEmpty();
+        assertThat(s1958.getFirst().teamId()).isEqualTo("vanwall:vanwall");
+        assertThat(s1958.getFirst().teamName()).isEqualTo("Vanwall");
+        assertThat(s1958.getFirst().championshipWon()).isTrue();
+        assertThat(s1958).anySatisfy(s -> {
+            assertThat(s.teamId()).isEqualTo("cooper:climax");
+            assertThat(s.teamName()).isEqualTo("Cooper Climax");
+        });
+
+        assertThat(repository.findRealConstructorStandings(1955)).isEmpty();
+
+        List<SessionResult> r1988 = repository.findBySeason(1988);
+        assertThat(r1988).anySatisfy(r -> {
+            assertThat(r.constructorId()).isEqualTo("mclaren");
+            assertThat(r.engineManufacturerName()).isEqualTo("Honda");
+        });
+    }
+
     private static Integer[] rangeClosed(int from, int to) {
         return IntStream.rangeClosed(from, to).boxed().toArray(Integer[]::new);
     }

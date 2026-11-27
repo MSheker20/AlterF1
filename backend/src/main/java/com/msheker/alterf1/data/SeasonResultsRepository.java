@@ -27,7 +27,7 @@ public class SeasonResultsRepository {
                        position_display_order, position_number, position_text,
                        driver_id, driver_name, driver_abbreviation, constructor_id, engine_manufacturer_id,
                        shared_car, fastest_lap, laps_completed, session_laps, session_scheduled_laps,
-                       actual_points, grand_prix_code, constructor_name
+                       actual_points, grand_prix_code, constructor_name, engine_manufacturer_name
                 FROM alterf1.season_race_results
                 WHERE year = :year
                 ORDER BY round,
@@ -58,7 +58,8 @@ public class SeasonResultsRepository {
                         rs.getObject("session_scheduled_laps", Integer.class),
                         rs.getBigDecimal("actual_points"),
                         rs.getString("grand_prix_code"),
-                        rs.getString("constructor_name")))
+                        rs.getString("constructor_name"),
+                        rs.getString("engine_manufacturer_name")))
                 .list();
     }
 
@@ -84,6 +85,22 @@ public class SeasonResultsRepository {
                 """)
                 .param("year", year)
                 .query(RealStanding.class)
+                .list();
+    }
+
+    /** The real final constructors' standings of a season (1958+), in championship order. Empty before 1958. */
+    public List<RealConstructorStanding> findRealConstructorStandings(int year) {
+        return jdbc.sql("""
+                SELECT position_number AS position, position_text,
+                       constructor_id, constructor_name,
+                       engine_manufacturer_id, engine_manufacturer_name,
+                       points, championship_won
+                FROM alterf1.season_constructor_standings
+                WHERE year = :year
+                ORDER BY position_display_order
+                """)
+                .param("year", year)
+                .query(RealConstructorStanding.class)
                 .list();
     }
 

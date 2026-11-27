@@ -111,6 +111,10 @@ describe('HomePage', () => {
 
     const select = await screen.findByRole('combobox', { name: 'Season' })
     await screen.findByRole('option', { name: '1988' })
+    expect(screen.getByRole('link', { name: '2008 constructors' })).toHaveAttribute(
+      'href',
+      '/season/2008/constructors',
+    )
     await userEvent.selectOptions(select, '1988')
 
     expect(await screen.findByTestId('location')).toHaveTextContent('/season/1988')

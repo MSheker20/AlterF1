@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { StandingRow } from '../../api/types'
+import type { ChampionshipMode } from '../../api/types'
 import { systemContext, systemLabel } from '../../i18n/system'
+import { isDriverStanding, standingEntryId, standingEntryName } from '../../lib/championship'
+import type { StandingEntry } from '../../lib/championship'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 
 interface CompareSlopeProps {
-  standings: readonly StandingRow[]
+  standings: readonly StandingEntry[]
   systemId: string
   realSystem: string | null
+  mode?: ChampionshipMode
 }
 
 interface SlopeLine {
-  driverId: string
+  entryId: string
   color: string
   changed: boolean
   x1: number
@@ -24,8 +27,20 @@ interface SlopeLine {
 
 const MAX_SLOPE_ROWS = 20
 
-export function CompareSlope({ standings, systemId, realSystem }: CompareSlopeProps) {
+function slopeRowLabel(row: StandingEntry): string {
+  return isDriverStanding(row)
+    ? fallbackDriverCode(row.driverCode, row.driverName)
+    : row.teamName
+}
+
+export function CompareSlope({
+  standings,
+  systemId,
+  realSystem,
+  mode = 'drivers',
+}: CompareSlopeProps) {
   const { t } = useTranslation()
+  const isConstructors = mode === 'constructors'
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [pinnedId, setPinnedId] = useState<string | null>(null)
   const [svgSize, setSvgSize] = useState<{ width: number; height: number }>({
@@ -56,16 +71,16 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
 
   const rightRows = useMemo(() => standings.slice(0, MAX_SLOPE_ROWS), [standings])
 
-  const driverMap = useMemo(() => {
-    const map = new Map<string, StandingRow>()
+  const entryMap = useMemo(() => {
+    const map = new Map<string, StandingEntry>()
     for (const row of standings) {
-      map.set(row.driverId, row)
+      map.set(standingEntryId(row), row)
     }
     return map
   }, [standings])
 
-  const activeDriverId = hoveredId ?? pinnedId
-  const activeDriver = activeDriverId ? (driverMap.get(activeDriverId) ?? null) : null
+  const activeEntryId = hoveredId ?? pinnedId
+  const activeEntry = activeEntryId ? (entryMap.get(activeEntryId) ?? null) : null
 
   const recomputeLines = useCallback(() => {
     const svgEl = svgRef.current
@@ -79,7 +94,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
     }
 
     const leftIndexById = new Map<string, number>()
-    leftRows.forEach((row, idx) => leftIndexById.set(row.driverId, idx))
+    leftRows.forEach((row, idx) => leftIndexById.set(standingEntryId(row), idx))
 
     const x1 = 4
     const x2 = svgRect.width - 4
@@ -87,12 +102,13 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
 
     const computed: SlopeLine[] = []
     rightRows.forEach((row, rightIndex) => {
-      const leftIndex = leftIndexById.get(row.driverId)
+      const id = standingEntryId(row)
+      const leftIndex = leftIndexById.get(id)
       if (leftIndex === undefined) {
         return
       }
-      const leftEl = leftRefs.current.get(row.driverId)
-      const rightEl = rightRefs.current.get(row.driverId)
+      const leftEl = leftRefs.current.get(id)
+      const rightEl = rightRefs.current.get(id)
       if (!leftEl || !rightEl) {
         return
       }
@@ -104,7 +120,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
       const changed = leftIndex !== rightIndex
 
       computed.push({
-        driverId: row.driverId,
+        entryId: id,
         color: teamColor(row.constructorId),
         changed,
         x1,
@@ -175,22 +191,26 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
   const altHeaderLabel = systemLabel(t, systemId)
 
   const orderedLines = useMemo(() => {
-    if (!activeDriverId) {
+    if (!activeEntryId) {
       return lines
     }
     return [...lines].sort((a, b) => {
-      const aActive = a.driverId === activeDriverId ? 1 : 0
-      const bActive = b.driverId === activeDriverId ? 1 : 0
+      const aActive = a.entryId === activeEntryId ? 1 : 0
+      const bActive = b.entryId === activeEntryId ? 1 : 0
       return aActive - bActive
     })
-  }, [lines, activeDriverId])
+  }, [lines, activeEntryId])
+
+  const columnsClass = isConstructors
+    ? 'grid-cols-[minmax(122px,152px)_1fr_minmax(122px,152px)]'
+    : 'grid-cols-[minmax(112px,138px)_1fr_minmax(112px,138px)]'
 
   return (
     <section
       aria-label={t('compare.sectionAriaLabel')}
       className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg"
     >
-      <div className="grid grid-cols-[minmax(112px,138px)_1fr_minmax(112px,138px)] items-end border-b border-border bg-surface px-2.5 pt-1.5">
+      <div className={`grid ${columnsClass} items-end border-b border-border bg-surface px-2.5 pt-1.5`}>
         <div className="flex items-center justify-between border-b-2 border-transparent px-1.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
           <span className="truncate">{realHeaderLabel}</span>
           <span className="tabular-nums">{t('compare.pointsColumn')}</span>
@@ -219,7 +239,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
       >
         <div
           ref={gridRef}
-          className="relative grid grid-cols-[minmax(112px,138px)_1fr_minmax(112px,138px)] items-stretch"
+          className={`relative grid ${columnsClass} items-stretch`}
         >
           <div
             role="group"
@@ -227,50 +247,51 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
             className="flex flex-col gap-0.5"
           >
             {leftRows.map((row) => {
-              const isMatch = activeDriverId === row.driverId
-              const isDimmed = activeDriverId !== null && !isMatch
+              const id = standingEntryId(row)
+              const name = standingEntryName(row)
+              const isMatch = activeEntryId === id
+              const isDimmed = activeEntryId !== null && !isMatch
               const posText = row.realPosition !== null ? String(row.realPosition) : '—'
               const ptsText = row.realPoints !== null ? formatPoints(row.realPoints) : '—'
-              const code = fallbackDriverCode(row.driverCode, row.driverName)
+              const label = slopeRowLabel(row)
 
               return (
                 <button
-                  key={row.driverId}
+                  key={id}
                   ref={(node) => {
                     if (node) {
-                      leftRefs.current.set(row.driverId, node)
+                      leftRefs.current.set(id, node)
                     } else {
-                      leftRefs.current.delete(row.driverId)
+                      leftRefs.current.delete(id)
                     }
                   }}
                   type="button"
-                  aria-pressed={pinnedId === row.driverId}
+                  title={name}
+                  aria-pressed={pinnedId === id}
                   aria-label={t('compare.rowAria', {
                     side: realHeaderLabel,
                     pos: posText,
-                    driver: row.driverName,
+                    driver: name,
                     points: ptsText,
                   })}
                   onPointerEnter={(event) => {
                     if (event.pointerType === 'mouse') {
-                      setHoveredId(row.driverId)
+                      setHoveredId(id)
                     }
                   }}
                   onPointerLeave={(event) => {
                     if (event.pointerType === 'mouse') {
-                      setHoveredId((prev) => (prev === row.driverId ? null : prev))
+                      setHoveredId((prev) => (prev === id ? null : prev))
                     }
                   }}
-                  onFocus={() => setHoveredId(row.driverId)}
-                  onBlur={() =>
-                    setHoveredId((prev) => (prev === row.driverId ? null : prev))
-                  }
+                  onFocus={() => setHoveredId(id)}
+                  onBlur={() => setHoveredId((prev) => (prev === id ? null : prev))}
                   onClick={() => {
-                    if (pinnedId === row.driverId) {
+                    if (pinnedId === id) {
                       setPinnedId(null)
                       setHoveredId(null)
                     } else {
-                      setPinnedId(row.driverId)
+                      setPinnedId(id)
                     }
                   }}
                   className={`grid h-8 w-full cursor-pointer grid-cols-[18px_3px_1fr_auto] items-center gap-x-1.5 rounded-md border px-1.5 text-left transition-all ${
@@ -293,8 +314,14 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                     className="block h-4 w-[3px] rounded-[2px]"
                     style={{ backgroundColor: teamColor(row.constructorId) }}
                   />
-                  <span className="truncate text-xs font-bold uppercase tracking-[0.06em] text-text">
-                    {code}
+                  <span
+                    className={
+                      isConstructors
+                        ? 'truncate text-xs font-semibold text-text'
+                        : 'truncate text-xs font-bold uppercase tracking-[0.06em] text-text'
+                    }
+                  >
+                    {label}
                   </span>
                   <span className="text-right text-xs font-semibold tabular-nums text-muted">
                     {ptsText}
@@ -304,7 +331,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
             })}
           </div>
 
-          <div aria-hidden="true" className="relative min-w-[52px]">
+          <div aria-hidden="true" className="relative min-w-[44px]">
             <svg
               ref={svgRef}
               viewBox={
@@ -315,13 +342,13 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
               className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
             >
               {orderedLines.map((line) => {
-                const isMatch = activeDriverId === line.driverId
-                const isDimmed = activeDriverId !== null && !isMatch
+                const isMatch = activeEntryId === line.entryId
+                const isDimmed = activeEntryId !== null && !isMatch
                 const strokeWidth = isMatch ? 3.2 : line.changed ? 2.5 : 1
                 const opacity = isMatch ? 1 : isDimmed ? 0.08 : line.changed ? 1 : 0.35
 
                 return (
-                  <g key={line.driverId}>
+                  <g key={line.entryId}>
                     <path
                       d={`M ${line.x1} ${line.y1} C ${line.cx} ${line.y1}, ${line.cx} ${line.y2}, ${line.x2} ${line.y2}`}
                       fill="none"
@@ -364,49 +391,50 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
             className="flex flex-col gap-0.5"
           >
             {rightRows.map((row) => {
-              const isMatch = activeDriverId === row.driverId
-              const isDimmed = activeDriverId !== null && !isMatch
+              const id = standingEntryId(row)
+              const name = standingEntryName(row)
+              const isMatch = activeEntryId === id
+              const isDimmed = activeEntryId !== null && !isMatch
               const ptsText = formatPoints(row.points)
-              const code = fallbackDriverCode(row.driverCode, row.driverName)
+              const label = slopeRowLabel(row)
 
               return (
                 <button
-                  key={row.driverId}
+                  key={id}
                   ref={(node) => {
                     if (node) {
-                      rightRefs.current.set(row.driverId, node)
+                      rightRefs.current.set(id, node)
                     } else {
-                      rightRefs.current.delete(row.driverId)
+                      rightRefs.current.delete(id)
                     }
                   }}
                   type="button"
-                  aria-pressed={pinnedId === row.driverId}
+                  title={name}
+                  aria-pressed={pinnedId === id}
                   aria-label={t('compare.rowAria', {
                     side: altHeaderLabel,
                     pos: String(row.position),
-                    driver: row.driverName,
+                    driver: name,
                     points: ptsText,
                   })}
                   onPointerEnter={(event) => {
                     if (event.pointerType === 'mouse') {
-                      setHoveredId(row.driverId)
+                      setHoveredId(id)
                     }
                   }}
                   onPointerLeave={(event) => {
                     if (event.pointerType === 'mouse') {
-                      setHoveredId((prev) => (prev === row.driverId ? null : prev))
+                      setHoveredId((prev) => (prev === id ? null : prev))
                     }
                   }}
-                  onFocus={() => setHoveredId(row.driverId)}
-                  onBlur={() =>
-                    setHoveredId((prev) => (prev === row.driverId ? null : prev))
-                  }
+                  onFocus={() => setHoveredId(id)}
+                  onBlur={() => setHoveredId((prev) => (prev === id ? null : prev))}
                   onClick={() => {
-                    if (pinnedId === row.driverId) {
+                    if (pinnedId === id) {
                       setPinnedId(null)
                       setHoveredId(null)
                     } else {
-                      setPinnedId(row.driverId)
+                      setPinnedId(id)
                     }
                   }}
                   className={`grid h-8 w-full cursor-pointer grid-cols-[18px_3px_1fr_auto] items-center gap-x-1.5 rounded-md border px-1.5 text-left transition-all ${
@@ -429,8 +457,14 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                     className="block h-4 w-[3px] rounded-[2px]"
                     style={{ backgroundColor: teamColor(row.constructorId) }}
                   />
-                  <span className="truncate text-xs font-bold uppercase tracking-[0.06em] text-text">
-                    {code}
+                  <span
+                    className={
+                      isConstructors
+                        ? 'truncate text-xs font-semibold text-text'
+                        : 'truncate text-xs font-bold uppercase tracking-[0.06em] text-text'
+                    }
+                  >
+                    {label}
                   </span>
                   <span className="text-right text-xs font-bold tabular-nums text-text">
                     {ptsText}
@@ -446,10 +480,14 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
         aria-live="polite"
         className="flex min-h-12 items-center justify-between gap-2.5 border-t border-border bg-surface px-3.5 py-2.5 text-xs"
       >
-        {activeDriver ? (
-          <CompareInspector row={activeDriver} systemId={systemId} />
+        {activeEntry ? (
+          <CompareInspector row={activeEntry} systemId={systemId} />
         ) : (
-          <span className="text-[11px] text-muted">{t('compare.inspectorHint')}</span>
+          <span className="text-[11px] text-muted">
+            {isConstructors
+              ? t('compare.inspectorHintConstructors')
+              : t('compare.inspectorHint')}
+          </span>
         )}
       </div>
     </section>
@@ -457,12 +495,13 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
 }
 
 interface CompareInspectorProps {
-  row: StandingRow
+  row: StandingEntry
   systemId: string
 }
 
 function CompareInspector({ row, systemId }: CompareInspectorProps) {
   const { t } = useTranslation()
+  const isDriver = isDriverStanding(row)
   const delta = deltaLabel(t, row.positionChange)
   const deltaClass =
     delta.direction === 'up'
@@ -487,7 +526,7 @@ function CompareInspector({ row, systemId }: CompareInspectorProps) {
         />
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="truncate font-bold text-text">
-            {row.driverName} · {row.constructorName}
+            {isDriver ? `${row.driverName} · ${row.constructorName}` : row.teamName}
           </span>
           <span className="text-[11px] tabular-nums text-muted">
             {t('compare.inspectorTransition', {

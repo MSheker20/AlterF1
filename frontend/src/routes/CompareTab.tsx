@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ApiError } from '../api/client'
 import { useCompare } from '../api/compare'
-import type { CompareResponse } from '../api/types'
+import { useConstructorCompare } from '../api/constructors'
 import { CompareMatrix } from '../components/compare/CompareMatrix'
 import { QueryErrorState, StandingsErrorBanner } from '../components/season/ErrorPanel'
 import { useSeasonLayout } from '../components/season/seasonLayoutContext'
+import { normalizeConstructorCompare, normalizeDriverCompare } from '../lib/championship'
+import type { NormalizedCompareData } from '../lib/championship'
 
 const SKELETON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 export function CompareTab() {
   const {
+    mode,
     year,
     scenario,
     scenarioOpen,
@@ -19,23 +22,42 @@ export function CompareTab() {
     refetchStandings,
     selectSystem,
   } = useSeasonLayout()
-  const compareQuery = useCompare(year, scenario)
 
-  const [lastCompare, setLastCompare] = useState<CompareResponse | null>(null)
+  const driverCompareQuery = useCompare(mode === 'drivers' ? year : null, scenario)
+  const constructorCompareQuery = useConstructorCompare(
+    mode === 'constructors' ? year : null,
+    scenario,
+  )
+  const activeQuery = mode === 'constructors' ? constructorCompareQuery : driverCompareQuery
+
+  const normalizedData = useMemo<NormalizedCompareData | null>(() => {
+    if (mode === 'constructors') {
+      return constructorCompareQuery.data
+        ? normalizeConstructorCompare(constructorCompareQuery.data)
+        : null
+    }
+    return driverCompareQuery.data ? normalizeDriverCompare(driverCompareQuery.data) : null
+  }, [mode, constructorCompareQuery.data, driverCompareQuery.data])
+
+  const [lastCompare, setLastCompare] = useState<NormalizedCompareData | null>(null)
   if (
-    compareQuery.data &&
-    compareQuery.data.season === year &&
-    compareQuery.data !== lastCompare
+    normalizedData &&
+    normalizedData.season === year &&
+    normalizedData.mode === mode &&
+    normalizedData !== lastCompare
   ) {
-    setLastCompare(compareQuery.data)
-  } else if (lastCompare !== null && lastCompare.season !== year) {
+    setLastCompare(normalizedData)
+  } else if (
+    lastCompare !== null &&
+    (lastCompare.season !== year || lastCompare.mode !== mode)
+  ) {
     setLastCompare(null)
   }
 
-  const tabError = compareQuery.error
+  const tabError = activeQuery.error
   const isSamePanel400 =
     scenarioOpen &&
-    compareQuery.isError &&
+    activeQuery.isError &&
     tabError instanceof ApiError &&
     tabError.status === 400 &&
     standingsIsError &&
@@ -45,16 +67,16 @@ export function CompareTab() {
     standingsError.detail === tabError.detail
 
   const handledInPanel = isSamePanel400 && lastCompare !== null
-  const showPageError = compareQuery.isError && !handledInPanel
+  const showPageError = activeQuery.isError && !handledInPanel
   const showStandingsBanner = !showPageError && showStandingsPageError
-  const displayCompare = compareQuery.isError
+  const displayCompare = activeQuery.isError
     ? handledInPanel
       ? lastCompare
       : null
-    : (compareQuery.data ?? null)
+    : normalizedData
 
   function handleRetry() {
-    void compareQuery.refetch()
+    void activeQuery.refetch()
     if (standingsIsError) {
       refetchStandings()
     }
@@ -62,19 +84,19 @@ export function CompareTab() {
 
   return (
     <>
-      {showPageError && <QueryErrorState error={compareQuery.error} onRetry={handleRetry} />}
+      {showPageError && <QueryErrorState error={activeQuery.error} onRetry={handleRetry} />}
 
       {showStandingsBanner && (
         <StandingsErrorBanner error={standingsError} onRetry={refetchStandings} />
       )}
 
       {!displayCompare ? (
-        compareQuery.isError ? null : (
+        activeQuery.isError ? null : (
           <CompareSkeleton />
         )
       ) : (
         <CompareMatrix
-          key={displayCompare.season}
+          key={`${displayCompare.mode}-${displayCompare.season}`}
           data={displayCompare}
           selectedSystem={scenario.system}
           onSelectSystem={selectSystem}

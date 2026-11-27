@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MotionConfig } from 'motion/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { RaceSummary, StandingRow } from '../../api/types'
+import type { ConstructorStandingRow, RaceSummary, StandingRow } from '../../api/types'
 import { StandingsTower } from './StandingsTower'
 
 const RACES: RaceSummary[] = [
@@ -135,5 +135,64 @@ describe('StandingsTower', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(24)
     expect(screen.getByText('D24')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show top 20 drivers' })).toBeInTheDocument()
+  })
+
+  it('renders constructor rows with team names, team colour strips, and hides deltas when hideDelta is true', () => {
+    const constructors: ConstructorStandingRow[] = [
+      {
+        position: 1,
+        realPosition: null,
+        positionChange: null,
+        teamId: 'cooper:climax',
+        constructorId: 'cooper',
+        engineManufacturerId: 'climax',
+        teamName: 'Cooper-Climax',
+        points: 40,
+        realPoints: null,
+        wins: 5,
+        podiums: 8,
+        results: ['1', '2'],
+      },
+      {
+        position: 2,
+        realPosition: null,
+        positionChange: null,
+        teamId: 'ferrari:ferrari',
+        constructorId: 'ferrari',
+        engineManufacturerId: 'ferrari',
+        teamName: 'Ferrari',
+        points: 32,
+        realPoints: null,
+        wins: 2,
+        podiums: 6,
+        results: ['2', '1'],
+      },
+    ]
+
+    render(
+      <MotionConfig reducedMotion="always">
+        <StandingsTower
+          standings={constructors}
+          races={RACES}
+          season={1955}
+          systemId="1950"
+          mode="constructors"
+          hideDelta
+          isDesktop={false}
+          expandedDriverId={null}
+          selectedDriverId={null}
+          onSelectRow={vi.fn()}
+        />
+      </MotionConfig>,
+    )
+
+    const list = screen.getByRole('list', { name: 'Constructor standings' })
+    const items = within(list).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(within(items[0]).getByText('Cooper-Climax')).toBeInTheDocument()
+    expect(within(items[0]).getByText('40')).toBeInTheDocument()
+    expect(within(items[1]).getByText('Ferrari')).toBeInTheDocument()
+    expect(screen.queryByText('position unchanged')).not.toBeInTheDocument()
+    expect(screen.queryByText('Δ')).not.toBeInTheDocument()
   })
 })

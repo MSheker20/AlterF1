@@ -149,11 +149,11 @@ final class TestSeasons {
                         year, round, raceId, grandPrixId, raceDate, indy500, session,
                         i + 1, e.position, e.positionText,
                         e.driverId, e.driverId, abbr,
-                        e.constructorId, "engine",
-                        false, e.fastestLap,
+                        e.constructorId, e.engineId,
+                        e.sharedCar, e.fastestLap,
                         laps, 50, 50, actual,
                         grandPrixId.substring(0, Math.min(3, grandPrixId.length())).toUpperCase(Locale.ROOT),
-                        e.constructorId));
+                        e.constructorName, e.engineName));
             }
             return built;
         }
@@ -180,6 +180,10 @@ final class TestSeasons {
         private final Integer position;
         private final String positionText;
         private String constructorId;
+        private String constructorName;
+        private String engineId = "engine";
+        private String engineName = "Engine";
+        private boolean sharedCar;
         private boolean fastestLap;
         private BigDecimal actualPointsOverride;
 
@@ -188,10 +192,37 @@ final class TestSeasons {
             this.position = position;
             this.positionText = positionText;
             this.constructorId = "team-" + driverId;
+            this.constructorName = this.constructorId;
         }
 
         EntryBuilder constructor(String constructorId) {
             this.constructorId = constructorId;
+            this.constructorName = constructorId;
+            return this;
+        }
+
+        EntryBuilder constructor(String constructorId, String constructorName) {
+            this.constructorId = constructorId;
+            this.constructorName = constructorName;
+            return this;
+        }
+
+        EntryBuilder engine(String engineId, String engineName) {
+            this.engineId = engineId;
+            this.engineName = engineName;
+            return this;
+        }
+
+        EntryBuilder team(String constructorId, String constructorName, String engineId, String engineName) {
+            this.constructorId = constructorId;
+            this.constructorName = constructorName;
+            this.engineId = engineId;
+            this.engineName = engineName;
+            return this;
+        }
+
+        EntryBuilder sharedCar() {
+            this.sharedCar = true;
             return this;
         }
 

@@ -3,14 +3,20 @@ import type { ReactNode } from 'react'
 import { MotionConfig } from 'motion/react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
+import { useConstructorStandings } from '../../api/constructors'
 import { useSeasons, useStandings, useSystems } from '../../api/standings'
-import type { StandingsResponse, SystemId } from '../../api/types'
+import type { ChampionshipMode, SystemId } from '../../api/types'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
 import type { Language } from '../../i18n'
 import { badRequestMessage } from '../../i18n/apiErrors'
 import { useLocalizedPath } from '../../i18n/useLocalizedPath'
+import {
+  normalizeConstructorStandings,
+  normalizeDriverStandings,
+} from '../../lib/championship'
+import type { NormalizedSeasonStandings } from '../../lib/championship'
 import {
   countActive,
   countActivePayload,
@@ -34,7 +40,6 @@ import { YearSelect } from '../tower/YearSelect'
 import { ErrorPanel } from './ErrorPanel'
 import { SeasonLayoutContext } from './seasonLayoutContext'
 import type { SeasonLayoutContextValue } from './seasonLayoutContext'
-
 
 function parseYearParam(rawYear: string | undefined): number | null {
   if (!rawYear || !/^\d{4}$/.test(rawYear)) {
@@ -60,6 +65,14 @@ function tabLinkClass(isActive: boolean): string {
     isActive
       ? 'border-accent text-text'
       : 'border-transparent text-muted hover:border-[#3a4250] hover:text-text'
+  }`
+}
+
+function championshipLinkClass(isActive: boolean): string {
+  return `inline-flex h-[30px] items-center rounded-[6px] px-3 text-xs font-semibold no-underline transition-colors sm:text-[13px] ${
+    isActive
+      ? 'bg-surface-2 text-text ring-1 ring-inset ring-[#363d48]'
+      : 'text-muted hover:text-text'
   }`
 }
 
@@ -112,10 +125,11 @@ function mapInlineScenarioError(
 }
 
 interface SeasonLayoutProps {
+  mode?: ChampionshipMode
   children?: ReactNode
 }
 
-export function SeasonLayout({ children }: SeasonLayoutProps) {
+export function SeasonLayout({ mode = 'drivers', children }: SeasonLayoutProps) {
   const { t } = useTranslation()
   const { lang, to } = useLocalizedPath()
   const { year: rawYear } = useParams<{ year: string }>()
@@ -133,21 +147,40 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
 
   const seasonsQuery = useSeasons()
   const systemsQuery = useSystems()
-  const standingsQuery = useStandings(parsedYear, scenario)
-  const { refetch: refetchStandingsQuery } = standingsQuery
+  const driverStandingsQuery = useStandings(mode === 'drivers' ? parsedYear : null, scenario)
+  const constructorStandingsQuery = useConstructorStandings(
+    mode === 'constructors' ? parsedYear : null,
+    scenario,
+  )
+
+  const activeQuery = mode === 'constructors' ? constructorStandingsQuery : driverStandingsQuery
+  const { refetch: refetchActiveQuery } = activeQuery
+
+  const normalizedData = useMemo<NormalizedSeasonStandings | null>(() => {
+    if (mode === 'constructors') {
+      return constructorStandingsQuery.data
+        ? normalizeConstructorStandings(constructorStandingsQuery.data)
+        : null
+    }
+    return driverStandingsQuery.data ? normalizeDriverStandings(driverStandingsQuery.data) : null
+  }, [mode, constructorStandingsQuery.data, driverStandingsQuery.data])
 
   const [scenarioOpen, setScenarioOpen] = useState(false)
   const scenarioButtonRef = useRef<HTMLButtonElement | null>(null)
 
-  // Keep last successful standings for the same season visible during 400 errors.
-  const [lastStandings, setLastStandings] = useState<StandingsResponse | null>(null)
+  // Keep last successful standings for the same season & mode visible during 400 errors.
+  const [lastStandings, setLastStandings] = useState<NormalizedSeasonStandings | null>(null)
   if (
-    standingsQuery.data &&
-    standingsQuery.data.season === parsedYear &&
-    standingsQuery.data !== lastStandings
+    normalizedData &&
+    normalizedData.season === parsedYear &&
+    normalizedData.mode === mode &&
+    normalizedData !== lastStandings
   ) {
-    setLastStandings(standingsQuery.data)
-  } else if (lastStandings !== null && lastStandings.season !== parsedYear) {
+    setLastStandings(normalizedData)
+  } else if (
+    lastStandings !== null &&
+    (lastStandings.season !== parsedYear || lastStandings.mode !== mode)
+  ) {
     setLastStandings(null)
   }
 
@@ -161,21 +194,21 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
   const { inlineErrors, handledInPanel } = useMemo(
     () =>
       mapInlineScenarioError(
-        standingsQuery.isError ? standingsQuery.error : null,
+        activeQuery.isError ? activeQuery.error : null,
         scenarioOpen,
         scenario.system === 'custom',
         t,
         lang,
       ),
-    [standingsQuery.isError, standingsQuery.error, scenarioOpen, scenario.system, t, lang],
+    [activeQuery.isError, activeQuery.error, scenarioOpen, scenario.system, t, lang],
   )
 
-  const showStandingsPageError = standingsQuery.isError && !handledInPanel
-  const displayStandings = standingsQuery.isError
+  const showStandingsPageError = activeQuery.isError && !handledInPanel
+  const displayStandings = activeQuery.isError
     ? handledInPanel
       ? lastStandings
       : null
-    : (standingsQuery.data ?? null)
+    : normalizedData
 
   const updateScenario = useCallback(
     (updater: (prev: Scenario) => Scenario) => {
@@ -193,7 +226,6 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
   const handleSystemChange = useCallback(
     (nextSystem: SystemId) => {
       if (nextSystem === 'custom') {
-        // Only rebuilt when the standings change, not on every render.
         const currentStandings = displayStandings
         updateScenario((prev) => ({
           ...prev,
@@ -224,9 +256,11 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
       const hasExplicitSystem = isKnownSystemId(rawSystem)
       const nextScenario = scenarioForYearChange(scenario, hasExplicitSystem, nextYear)
       const tabSuffix = getTabSuffix(location.pathname)
-      navigate(to(`/season/${nextYear}${tabSuffix}?${scenarioToParams(nextScenario).toString()}`))
+      const basePath =
+        mode === 'constructors' ? `/season/${nextYear}/constructors` : `/season/${nextYear}`
+      navigate(to(`${basePath}${tabSuffix}?${scenarioToParams(nextScenario).toString()}`))
     },
-    [location.pathname, navigate, scenario, searchParams, to],
+    [location.pathname, mode, navigate, scenario, searchParams, to],
   )
 
   const handleResetScenario = useCallback(() => {
@@ -238,25 +272,33 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
   }, [])
 
   const refetchStandings = useCallback(() => {
-    void refetchStandingsQuery()
-  }, [refetchStandingsQuery])
+    void refetchActiveQuery()
+  }, [refetchActiveQuery])
 
   const seasons = seasonsQuery.data ?? []
   const systems = systemsQuery.data ?? []
-  const realChampionId = displayStandings?.realChampion?.driverId ?? null
+  const realChampionId = displayStandings?.realChampion?.id ?? null
+  const tabSuffix = getTabSuffix(location.pathname)
+  const basePath =
+    parsedYear !== null
+      ? mode === 'constructors'
+        ? `/season/${parsedYear}/constructors`
+        : `/season/${parsedYear}`
+      : ''
 
   const contextValue = useMemo<SeasonLayoutContextValue | null>(() => {
     if (parsedYear === null) {
       return null
     }
     return {
+      mode,
       year: parsedYear,
       scenario,
       isDesktop,
       scenarioOpen,
       displayStandings,
-      standingsIsError: standingsQuery.isError,
-      standingsError: standingsQuery.error,
+      standingsIsError: activeQuery.isError,
+      standingsError: activeQuery.error,
       showStandingsPageError,
       refetchStandings,
       realChampionId,
@@ -264,13 +306,14 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
       selectSystem: handleSystemChange,
     }
   }, [
+    mode,
     parsedYear,
     scenario,
     isDesktop,
     scenarioOpen,
     displayStandings,
-    standingsQuery.isError,
-    standingsQuery.error,
+    activeQuery.isError,
+    activeQuery.error,
     showStandingsPageError,
     refetchStandings,
     realChampionId,
@@ -349,10 +392,38 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
           ) : (
             <>
               <div className="space-y-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h1 className="text-xl font-bold tracking-tight tabular-nums text-text sm:text-2xl">
-                    {t('page.seasonHeading', { year: parsedYear })}
+                    {mode === 'constructors'
+                      ? t('page.constructorsHeading', { year: parsedYear })
+                      : t('page.seasonHeading', { year: parsedYear })}
                   </h1>
+
+                  <nav
+                    aria-label={t('championship.navAriaLabel')}
+                    className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-surface p-[3px]"
+                  >
+                    <Link
+                      to={{
+                        pathname: to(`/season/${parsedYear}${tabSuffix}`),
+                        search: location.search,
+                      }}
+                      aria-current={mode === 'drivers' ? 'page' : undefined}
+                      className={championshipLinkClass(mode === 'drivers')}
+                    >
+                      {t('championship.drivers')}
+                    </Link>
+                    <Link
+                      to={{
+                        pathname: to(`/season/${parsedYear}/constructors${tabSuffix}`),
+                        search: location.search,
+                      }}
+                      aria-current={mode === 'constructors' ? 'page' : undefined}
+                      className={championshipLinkClass(mode === 'constructors')}
+                    >
+                      {t('championship.constructors')}
+                    </Link>
+                  </nav>
                 </div>
 
                 {displayStandings ? (
@@ -372,8 +443,10 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
                       displayStandings.scenario,
                       displayStandings.system,
                     )}
+                    alternative={displayStandings.alternative}
+                    bestCarOnly={displayStandings.bestCarOnly}
                   />
-                ) : standingsQuery.isError ? null : (
+                ) : activeQuery.isError ? null : (
                   <HeadlineSkeleton />
                 )}
 
@@ -390,21 +463,21 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
                   className="flex items-center gap-1 border-b border-border pt-1"
                 >
                   <NavLink
-                    to={{ pathname: to(`/season/${parsedYear}`), search: location.search }}
+                    to={{ pathname: to(basePath), search: location.search }}
                     end
                     className={({ isActive }) => tabLinkClass(isActive)}
                   >
                     {t('tabs.tower')}
                   </NavLink>
                   <NavLink
-                    to={{ pathname: to(`/season/${parsedYear}/compare`), search: location.search }}
+                    to={{ pathname: to(`${basePath}/compare`), search: location.search }}
                     end
                     className={({ isActive }) => tabLinkClass(isActive)}
                   >
                     {t('tabs.compare')}
                   </NavLink>
                   <NavLink
-                    to={{ pathname: to(`/season/${parsedYear}/progression`), search: location.search }}
+                    to={{ pathname: to(`${basePath}/progression`), search: location.search }}
                     end
                     className={({ isActive }) => tabLinkClass(isActive)}
                   >

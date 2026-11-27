@@ -13,6 +13,9 @@ const AboutPage = lazy(() => import('./routes/AboutPage').then((m) => ({ default
 const SeasonLayout = lazy(() =>
   import('./components/season/SeasonLayout').then((m) => ({ default: m.SeasonLayout })),
 )
+const ConstructorsLayout = lazy(() =>
+  import('./routes/ConstructorsPage').then((m) => ({ default: m.ConstructorsLayout })),
+)
 const TowerTab = lazy(() => import('./routes/SeasonPage').then((m) => ({ default: m.TowerTab })))
 const CompareTab = lazy(() => import('./routes/CompareTab').then((m) => ({ default: m.CompareTab })))
 const ProgressionTab = lazy(() =>
@@ -73,6 +76,34 @@ function pageRoutes() {
     <>
       <Route index element={<HomePage />} />
       <Route path="about" element={<AboutPage />} />
+      <Route path="season/:year/constructors" element={<ConstructorsLayout />}>
+        <Route
+          index
+          element={
+            <Suspense fallback={<TabFallback />}>
+              <TowerTab />
+            </Suspense>
+          }
+        />
+        <Route
+          path="compare"
+          element={
+            <Suspense fallback={<TabFallback />}>
+              <CompareTab />
+            </Suspense>
+          }
+        />
+        <Route
+          path="progression"
+          element={
+            <ErrorBoundary>
+              <Suspense fallback={<TabFallback />}>
+                <ProgressionTab />
+              </Suspense>
+            </ErrorBoundary>
+          }
+        />
+      </Route>
       <Route path="season/:year" element={<SeasonLayout />}>
         <Route
           index

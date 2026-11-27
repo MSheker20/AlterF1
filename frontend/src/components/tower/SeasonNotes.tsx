@@ -1,14 +1,50 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
-import type { SeasonNote } from '../../api/types'
+import type { ChampionshipMode, SeasonNote } from '../../api/types'
 import { useLocalizedPath } from '../../i18n/useLocalizedPath'
+
+export type DisplaySeasonNote = SeasonNote | 'best-car-only'
+
+type NoteTranslationKey =
+  | 'notes.best-car-only'
+  | 'notes.half-points'
+  | 'notes.double-points'
+  | 'notes.shared-points'
+  | 'notes.shared-points-constructors'
+  | 'notes.sprint-assumed'
+  | 'notes.best-scaled'
+  | 'notes.best-scaled-constructors'
+  | 'notes.ineligible'
+  | 'notes.ineligible-constructors'
+
+const CONSTRUCTORS_NOTE_KEY: Partial<Record<DisplaySeasonNote, NoteTranslationKey>> = {
+  'shared-points': 'notes.shared-points-constructors',
+  'best-scaled': 'notes.best-scaled-constructors',
+  ineligible: 'notes.ineligible-constructors',
+}
+
+function resolveNoteKey(note: DisplaySeasonNote, mode: ChampionshipMode): NoteTranslationKey {
+  if (mode === 'constructors') {
+    const constructorsKey = CONSTRUCTORS_NOTE_KEY[note]
+    if (constructorsKey) {
+      return constructorsKey
+    }
+  }
+  return `notes.${note}`
+}
 
 /**
  * The small "i" under the tower (PLAN.md §7): only shown when the season has something that
  * makes its points look unusual, and only the notes that apply.
  */
-export function SeasonNotes({ notes }: { notes: readonly SeasonNote[] }) {
+export function SeasonNotes({
+  notes,
+  mode = 'drivers',
+}: {
+  notes: readonly DisplaySeasonNote[]
+  mode?: ChampionshipMode
+}) {
   const { t } = useTranslation()
   const { to } = useLocalizedPath()
   const [open, setOpen] = useState(false)
@@ -39,7 +75,7 @@ export function SeasonNotes({ notes }: { notes: readonly SeasonNote[] }) {
         <div id={panelId} className="mt-1.5 max-w-2xl rounded-lg border border-border bg-surface px-4 py-3">
           <ul className="m-0 list-disc space-y-1.5 pl-4">
             {notes.map((note) => (
-              <li key={note}>{t(`notes.${note}`)}</li>
+              <li key={note}>{t(resolveNoteKey(note, mode))}</li>
             ))}
           </ul>
           <Link

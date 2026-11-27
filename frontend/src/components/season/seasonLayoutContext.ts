@@ -1,15 +1,17 @@
 // Context and hook live apart from SeasonLayout.tsx so that file exports only components
 // (Vite fast refresh).
 import { createContext, useContext } from 'react'
-import type { StandingsResponse, SystemId } from '../../api/types'
+import type { ChampionshipMode, SystemId } from '../../api/types'
+import type { NormalizedSeasonStandings } from '../../lib/championship'
 import type { Scenario } from '../../lib/scenario'
 
 export interface SeasonLayoutContextValue {
+  mode: ChampionshipMode
   year: number
   scenario: Scenario
   isDesktop: boolean
   scenarioOpen: boolean
-  displayStandings: StandingsResponse | null
+  displayStandings: NormalizedSeasonStandings | null
   standingsIsError: boolean
   standingsError: unknown
   showStandingsPageError: boolean

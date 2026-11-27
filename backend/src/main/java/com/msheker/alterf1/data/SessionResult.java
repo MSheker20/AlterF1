@@ -34,7 +34,8 @@ public record SessionResult(
         Integer sessionScheduledLaps,
         BigDecimal actualPoints,
         String grandPrixCode,
-        String constructorName) {
+        String constructorName,
+        String engineManufacturerName) {
 
     public enum Session { RACE, SPRINT }
 

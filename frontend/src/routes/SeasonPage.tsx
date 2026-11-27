@@ -1,19 +1,22 @@
 import { useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { StandingRow } from '../api/types'
 import { QueryErrorState } from '../components/season/ErrorPanel'
 import { SeasonLayout } from '../components/season/SeasonLayout'
 import { useSeasonLayout } from '../components/season/seasonLayoutContext'
 import { CompareSlope } from '../components/tower/CompareSlope'
 import { DetailSheet } from '../components/tower/DetailSheet'
 import { SeasonNotes } from '../components/tower/SeasonNotes'
+import type { DisplaySeasonNote } from '../components/tower/SeasonNotes'
 import { StandingsTower } from '../components/tower/StandingsTower'
+import { standingEntryId } from '../lib/championship'
+import type { StandingEntry } from '../lib/championship'
 
 const SKELETON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
 export function TowerTab() {
   const { t } = useTranslation()
   const {
+    mode,
     year,
     isDesktop,
     displayStandings,
@@ -24,44 +27,56 @@ export function TowerTab() {
   } = useSeasonLayout()
 
   const [mobileView, setMobileView] = useState<'tower' | 'compare'>('tower')
-  const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
-  const [sheetDriverId, setSheetDriverId] = useState<string | null>(null)
+  const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null)
+  const [sheetEntryId, setSheetEntryId] = useState<string | null>(null)
   const [sheetTrigger, setSheetTrigger] = useState<HTMLButtonElement | null>(null)
 
-  // A new season closes any open driver detail (state adjusted during render, no effect).
-  const [shownYear, setShownYear] = useState(year)
-  if (year !== shownYear) {
-    setShownYear(year)
-    setExpandedDriverId(null)
-    setSheetDriverId(null)
+  // A new season or championship closes any open row detail (state adjusted during render).
+  const scopeKey = `${mode}:${year}`
+  const [shownScope, setShownScope] = useState(scopeKey)
+  if (scopeKey !== shownScope) {
+    setShownScope(scopeKey)
+    setExpandedEntryId(null)
+    setSheetEntryId(null)
     setSheetTrigger(null)
+    setMobileView('tower')
   }
 
   // The bottom sheet is mobile-only: switching to desktop closes it.
-  if (isDesktop && sheetDriverId !== null) {
-    setSheetDriverId(null)
+  if (isDesktop && sheetEntryId !== null) {
+    setSheetEntryId(null)
   }
 
   const handleSelectRow = useCallback(
-    (row: StandingRow, triggerEl: HTMLButtonElement) => {
+    (row: StandingEntry, triggerEl: HTMLButtonElement) => {
+      const id = standingEntryId(row)
       if (isDesktop) {
-        setExpandedDriverId((prev) => (prev === row.driverId ? null : row.driverId))
+        setExpandedEntryId((prev) => (prev === id ? null : id))
       } else {
         setSheetTrigger(triggerEl)
-        setSheetDriverId(row.driverId)
+        setSheetEntryId(id)
       }
     },
     [isDesktop],
   )
 
   const handleCloseSheet = useCallback(() => {
-    setSheetDriverId(null)
+    setSheetEntryId(null)
   }, [])
 
   const sheetRow =
-    sheetDriverId !== null && displayStandings
-      ? (displayStandings.standings.find((row) => row.driverId === sheetDriverId) ?? null)
+    sheetEntryId !== null && displayStandings
+      ? (displayStandings.standings.find((row) => standingEntryId(row) === sheetEntryId) ?? null)
       : null
+
+  const hideDelta = displayStandings?.alternative ?? false
+  const effectiveMobileView = hideDelta ? 'tower' : mobileView
+
+  const displayNotes: DisplaySeasonNote[] = displayStandings
+    ? displayStandings.bestCarOnly
+      ? ['best-car-only', ...displayStandings.notes]
+      : displayStandings.notes
+    : []
 
   return (
     <>
@@ -74,72 +89,96 @@ export function TowerTab() {
           <StandingsSkeleton isDesktop={isDesktop} />
         )
       ) : isDesktop ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_minmax(340px,430px)] items-start gap-6">
-          <StandingsTower
-            key={displayStandings.season}
-            standings={displayStandings.standings}
-            races={displayStandings.races}
-            season={displayStandings.season}
-            systemId={displayStandings.system}
-            isDesktop
-            expandedDriverId={expandedDriverId}
-            selectedDriverId={null}
-            onSelectRow={handleSelectRow}
-          />
-
-          <div className="sticky top-20">
-            <CompareSlope
-              key={displayStandings.season}
+        hideDelta ? (
+          <div className="max-w-3xl">
+            <StandingsTower
+              key={`${displayStandings.mode}-${displayStandings.season}`}
               standings={displayStandings.standings}
+              races={displayStandings.races}
+              season={displayStandings.season}
               systemId={displayStandings.system}
-              realSystem={displayStandings.realSystem}
+              mode={displayStandings.mode}
+              hideDelta
+              isDesktop
+              expandedDriverId={expandedEntryId}
+              selectedDriverId={null}
+              onSelectRow={handleSelectRow}
             />
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-[minmax(0,1fr)_minmax(340px,430px)] items-start gap-6">
+            <StandingsTower
+              key={`${displayStandings.mode}-${displayStandings.season}`}
+              standings={displayStandings.standings}
+              races={displayStandings.races}
+              season={displayStandings.season}
+              systemId={displayStandings.system}
+              mode={displayStandings.mode}
+              isDesktop
+              expandedDriverId={expandedEntryId}
+              selectedDriverId={null}
+              onSelectRow={handleSelectRow}
+            />
+
+            <div className="sticky top-20">
+              <CompareSlope
+                key={`${displayStandings.mode}-${displayStandings.season}`}
+                standings={displayStandings.standings}
+                systemId={displayStandings.system}
+                realSystem={displayStandings.realSystem}
+                mode={displayStandings.mode}
+              />
+            </div>
+          </div>
+        )
       ) : (
         <div className="space-y-4">
-          <div
-            role="group"
-            aria-label={t('controls.viewModeLabel')}
-            className="inline-flex w-full rounded-lg border border-border bg-surface p-[3px] sm:w-auto"
-          >
-            <button
-              type="button"
-              aria-pressed={mobileView === 'tower'}
-              onClick={() => setMobileView('tower')}
-              className={`flex-1 cursor-pointer rounded-[6px] px-4 py-1.5 text-xs font-semibold transition-colors sm:flex-none ${
-                mobileView === 'tower'
-                  ? 'bg-surface-2 text-text ring-1 ring-inset ring-[#363d48]'
-                  : 'text-muted hover:text-text'
-              }`}
+          {!hideDelta && (
+            <div
+              role="group"
+              aria-label={t('controls.viewModeLabel')}
+              className="inline-flex w-full rounded-lg border border-border bg-surface p-[3px] sm:w-auto"
             >
-              {t('controls.towerTab')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={mobileView === 'compare'}
-              onClick={() => setMobileView('compare')}
-              className={`flex-1 cursor-pointer rounded-[6px] px-4 py-1.5 text-xs font-semibold transition-colors sm:flex-none ${
-                mobileView === 'compare'
-                  ? 'bg-surface-2 text-text ring-1 ring-inset ring-[#363d48]'
-                  : 'text-muted hover:text-text'
-              }`}
-            >
-              {t('controls.compareTab')}
-            </button>
-          </div>
+              <button
+                type="button"
+                aria-pressed={effectiveMobileView === 'tower'}
+                onClick={() => setMobileView('tower')}
+                className={`flex-1 cursor-pointer rounded-[6px] px-4 py-1.5 text-xs font-semibold transition-colors sm:flex-none ${
+                  effectiveMobileView === 'tower'
+                    ? 'bg-surface-2 text-text ring-1 ring-inset ring-[#363d48]'
+                    : 'text-muted hover:text-text'
+                }`}
+              >
+                {t('controls.towerTab')}
+              </button>
+              <button
+                type="button"
+                aria-pressed={effectiveMobileView === 'compare'}
+                onClick={() => setMobileView('compare')}
+                className={`flex-1 cursor-pointer rounded-[6px] px-4 py-1.5 text-xs font-semibold transition-colors sm:flex-none ${
+                  effectiveMobileView === 'compare'
+                    ? 'bg-surface-2 text-text ring-1 ring-inset ring-[#363d48]'
+                    : 'text-muted hover:text-text'
+                }`}
+              >
+                {t('controls.compareTab')}
+              </button>
+            </div>
+          )}
 
-          {mobileView === 'tower' ? (
+          {effectiveMobileView === 'tower' ? (
             <>
               <StandingsTower
-                key={displayStandings.season}
+                key={`${displayStandings.mode}-${displayStandings.season}`}
                 standings={displayStandings.standings}
                 races={displayStandings.races}
                 season={displayStandings.season}
                 systemId={displayStandings.system}
+                mode={displayStandings.mode}
+                hideDelta={hideDelta}
                 isDesktop={false}
                 expandedDriverId={null}
-                selectedDriverId={sheetDriverId}
+                selectedDriverId={sheetEntryId}
                 onSelectRow={handleSelectRow}
               />
               <DetailSheet
@@ -148,21 +187,23 @@ export function TowerTab() {
                 season={displayStandings.season}
                 systemId={displayStandings.system}
                 restoreFocusTo={sheetTrigger}
+                hideDelta={hideDelta}
                 onClose={handleCloseSheet}
               />
             </>
           ) : (
             <CompareSlope
-              key={displayStandings.season}
+              key={`${displayStandings.mode}-${displayStandings.season}`}
               standings={displayStandings.standings}
               systemId={displayStandings.system}
               realSystem={displayStandings.realSystem}
+              mode={displayStandings.mode}
             />
           )}
         </div>
       )}
 
-      {displayStandings && <SeasonNotes notes={displayStandings.notes} />}
+      {displayStandings && <SeasonNotes notes={displayNotes} mode={displayStandings.mode} />}
     </>
   )
 }

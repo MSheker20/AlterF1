@@ -48,6 +48,9 @@ describe('AboutPage', () => {
     ).toBeInTheDocument()
     expect(await screen.findByRole('rowheader', { name: /1950/ })).toBeInTheDocument()
     expect(screen.getByText('25-18-15-12-10-8-6-4-2-1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: "Constructors' championship" }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'F1DB on GitHub' })).toBeInTheDocument()
   })
 
@@ -56,6 +59,9 @@ describe('AboutPage', () => {
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'AlterF1 nasıl çalışır' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { level: 2, name: 'Takımlar şampiyonası' }),
     ).toBeInTheDocument()
     expect(document.documentElement.lang).toBe('tr')
     expect(screen.getByRole('link', { name: 'Show this page in English' })).toHaveAttribute(

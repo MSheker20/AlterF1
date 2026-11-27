@@ -25,8 +25,8 @@ import com.msheker.alterf1.data.SessionResult.Session;
  */
 public final class StandingsEngine {
 
-    private static final int SCALE = 8;
-    private static final int MAX_COUNTBACK = 40;
+    static final int SCALE = 8;
+    static final int MAX_COUNTBACK = 40;
     private static final BigDecimal HALF = new BigDecimal("0.50");
     private static final BigDecimal DOUBLE = new BigDecimal("2.00");
 
@@ -290,7 +290,7 @@ public final class StandingsEngine {
         return counted(soFar, best, allRaceRounds).add(sumUpTo(d.sprintScores, round));
     }
 
-    private static BigDecimal sumUpTo(Map<Integer, BigDecimal> scores, int round) {
+    static BigDecimal sumUpTo(Map<Integer, BigDecimal> scores, int round) {
         BigDecimal total = BigDecimal.ZERO;
         for (Map.Entry<Integer, BigDecimal> e : scores.entrySet()) {
             if (e.getKey() <= round) {
@@ -326,7 +326,7 @@ public final class StandingsEngine {
     }
 
     /** Real-life multipliers are a user setting (PLAN.md §3): apply only what the options allow. */
-    private static BigDecimal applicableMultiplier(BigDecimal detected, ScoringOptions options, boolean ownSystem) {
+    static BigDecimal applicableMultiplier(BigDecimal detected, ScoringOptions options, boolean ownSystem) {
         boolean apply = switch (detected.compareTo(BigDecimal.ONE)) {
             case -1 -> options.halfPoints();
             case 1 -> switch (options.doublePoints()) {
@@ -422,7 +422,7 @@ public final class StandingsEngine {
      * in races where ineligible cars' points passed to the cars behind (1967/69), its rank
      * among the eligible cars.
      */
-    private static Map<Integer, Integer> scoringPositions(List<SessionResult> rows, Map<Integer, Integer> positions,
+    static Map<Integer, Integer> scoringPositions(List<SessionResult> rows, Map<Integer, Integer> positions,
             RaceFacts facts) {
         if (!facts.pointsPassedDown) {
             return positions;
@@ -446,7 +446,7 @@ public final class StandingsEngine {
      * When every driver who set the fastest lap was removed, the bonus passes to the next fastest
      * remaining driver (PLAN.md §2.2). Returns the positionDisplayOrder of the row that receives it.
      */
-    private static Set<Integer> transferFastestLap(List<SessionResult> allRows, List<SessionResult> rows,
+    static Set<Integer> transferFastestLap(List<SessionResult> allRows, List<SessionResult> rows,
             Scenario scenario, RaceFacts facts) {
         boolean removedHolder = allRows.stream().anyMatch(r -> r.fastestLap() && scenario.excludes(r.driverId()));
         boolean remainingHolder = rows.stream().anyMatch(r -> r.fastestLap() && !facts.ineligible(r));
@@ -535,7 +535,7 @@ public final class StandingsEngine {
     }
 
     /** Race scores (round → score) that count under the dropped-scores rule. */
-    private static BigDecimal counted(Map<Integer, BigDecimal> raceScores, BestResults best, List<Integer> raceRounds) {
+    static BigDecimal counted(Map<Integer, BigDecimal> raceScores, BestResults best, List<Integer> raceRounds) {
         return switch (best) {
             case All() -> sum(raceScores.values());
             case Season(int count) -> top(raceScores.values(), count);
@@ -556,7 +556,7 @@ public final class StandingsEngine {
         return sum(list.subList(0, Math.min(count, list.size())));
     }
 
-    private static BigDecimal sum(Iterable<BigDecimal> values) {
+    static BigDecimal sum(Iterable<BigDecimal> values) {
         BigDecimal total = BigDecimal.ZERO;
         for (BigDecimal value : values) {
             total = total.add(value);
@@ -564,7 +564,7 @@ public final class StandingsEngine {
         return total;
     }
 
-    private static BigDecimal rounded(BigDecimal value) {
+    static BigDecimal rounded(BigDecimal value) {
         return value.setScale(2, RoundingMode.HALF_UP);
     }
 
@@ -633,7 +633,7 @@ public final class StandingsEngine {
         }
     }
 
-    private record Countback(int[] finishes) implements Comparable<Countback> {
+    record Countback(int[] finishes) implements Comparable<Countback> {
         @Override
         public int compareTo(Countback other) {
             for (int i = 1; i < finishes.length; i++) {

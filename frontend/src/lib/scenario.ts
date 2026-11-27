@@ -351,6 +351,7 @@ export function formatRulesDescription(
   t: TFunction,
   systemId: string,
   rules: RulesSummary,
+  options?: { bestCarOnly?: boolean },
 ): string {
   const prefix = t('rules.prefix', {
     context: systemContext(systemId),
@@ -385,6 +386,10 @@ export function formatRulesDescription(
         secondCount: rules.bestResults.secondCount,
       }),
     )
+  }
+
+  if (options?.bestCarOnly) {
+    parts.push(t('rules.bestCarOnly'))
   }
 
   return parts.join(' · ')
