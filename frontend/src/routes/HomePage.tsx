@@ -112,20 +112,23 @@ function AlternativeRow({
   return (
     <Link
       to={to(`/season/${season}?system=${system}`)}
-      aria-label={t('home.alternativeAria', {
-        year: season,
-        system,
-        winner: champion.driverName,
-        real: realName,
-      })}
       className="group flex items-center gap-3 rounded-md px-2.5 py-2 no-underline transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
     >
+      {/* The link is named by this sentence; the visual parts below are hidden from screen readers. */}
+      <span className="sr-only">
+        {t('home.alternativeAria', {
+          year: season,
+          system,
+          winner: champion.driverName,
+          real: realName,
+        })}
+      </span>
       <span
         aria-hidden="true"
         className="h-8 w-1 shrink-0 rounded-[2px]"
         style={{ backgroundColor: teamColor(championConstructorId) }}
       />
-      <span className="min-w-0 flex-1">
+      <span aria-hidden="true" className="min-w-0 flex-1">
         <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted">
           {t('home.underRules', { system })}
         </span>
@@ -134,7 +137,7 @@ function AlternativeRow({
           <span className="font-normal tabular-nums text-muted">{formatPoints(champion.points)}</span>
         </span>
       </span>
-      <span className="shrink-0 text-right text-xs tabular-nums text-muted">
+      <span aria-hidden="true" className="shrink-0 text-right text-xs tabular-nums text-muted">
         {t('home.realFinish', { surname: getSurname(realName), position: realChampionPosition })}
         <span className="block">{formatPoints(realChampionPoints)}</span>
       </span>

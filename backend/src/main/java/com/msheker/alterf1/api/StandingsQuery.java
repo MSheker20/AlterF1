@@ -17,7 +17,7 @@ import com.msheker.alterf1.core.ScoringSystem;
  * The query parameters of the standings endpoint (readable, shareable URLs; PLAN.md §2.2),
  * validated into domain values. Invalid input is a {@link BadRequestException} (400).
  */
-record StandingsQuery(
+public record StandingsQuery(
         String system,
         String preset,
         String exclude,

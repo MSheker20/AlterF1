@@ -48,7 +48,7 @@ export function DriversSection({
         </span>
         <span
           className={`text-[11px] font-semibold tabular-nums ${
-            removedCount > 0 ? 'text-accent' : 'text-muted'
+            removedCount > 0 ? 'text-accent-text' : 'text-muted'
           }`}
         >
           {t('scenario.driversRemoved', { count: removedCount })}

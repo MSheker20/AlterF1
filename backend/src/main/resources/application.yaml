@@ -21,9 +21,14 @@ spring:
 
 alterf1:
   version: 0.0.1
+  # Public origin for absolute link-preview URLs (e.g. https://alterf1.example). Empty locally: taken
+  # from the request. Set it once the site is public, so request headers cannot change these URLs.
+  public-origin: ${ALTERF1_PUBLIC_ORIGIN:}
 
 server:
   port: 8080
+  # Trust X-Forwarded-* from the dev proxy (and later the web server) so link previews get public URLs.
+  forward-headers-strategy: framework
 
 management:
   endpoints:

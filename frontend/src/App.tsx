@@ -1,20 +1,31 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, Outlet, Route, Routes } from 'react-router'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SimplePage } from './components/layout/SiteChrome'
 import type { Language } from './i18n'
 import { useLocalizedPath } from './i18n/useLocalizedPath'
-import { AboutPage } from './routes/AboutPage'
-import { SeasonLayout } from './components/season/SeasonLayout'
-import { CompareTab } from './routes/CompareTab'
-import { HomePage } from './routes/HomePage'
-import { TowerTab } from './routes/SeasonPage'
 
-// Recharts is only needed on the Progression tab: keep it out of the first download.
+// Each page is its own chunk: the home page does not download the tower's animation library
+// (motion) and only the Progression tab downloads Recharts.
+const HomePage = lazy(() => import('./routes/HomePage').then((m) => ({ default: m.HomePage })))
+const AboutPage = lazy(() => import('./routes/AboutPage').then((m) => ({ default: m.AboutPage })))
+const SeasonLayout = lazy(() =>
+  import('./components/season/SeasonLayout').then((m) => ({ default: m.SeasonLayout })),
+)
+const TowerTab = lazy(() => import('./routes/SeasonPage').then((m) => ({ default: m.TowerTab })))
+const CompareTab = lazy(() => import('./routes/CompareTab').then((m) => ({ default: m.CompareTab })))
 const ProgressionTab = lazy(() =>
   import('./routes/ProgressionTab').then((m) => ({ default: m.ProgressionTab })),
 )
+
+function TabFallback() {
+  return <div aria-busy="true" className="min-h-[440px]" />
+}
+
+function PageFallback() {
+  return <div aria-busy="true" className="min-h-dvh bg-bg" />
+}
 
 function NotFoundPage() {
   const { t } = useTranslation()
@@ -46,7 +57,15 @@ function LanguageRoot({ lang }: { lang: Language }) {
     }
     document.documentElement.lang = lang
   }, [i18n, lang])
-  return <Outlet />
+  const { pathname } = useLocation()
+  // A lazy page whose chunk fails to load (e.g. after a deploy) shows a reload prompt, not a blank page.
+  return (
+    <ErrorBoundary key={pathname}>
+      <Suspense fallback={<PageFallback />}>
+        <Outlet />
+      </Suspense>
+    </ErrorBoundary>
+  )
 }
 
 function pageRoutes() {
@@ -55,13 +74,27 @@ function pageRoutes() {
       <Route index element={<HomePage />} />
       <Route path="about" element={<AboutPage />} />
       <Route path="season/:year" element={<SeasonLayout />}>
-        <Route index element={<TowerTab />} />
-        <Route path="compare" element={<CompareTab />} />
+        <Route
+          index
+          element={
+            <Suspense fallback={<TabFallback />}>
+              <TowerTab />
+            </Suspense>
+          }
+        />
+        <Route
+          path="compare"
+          element={
+            <Suspense fallback={<TabFallback />}>
+              <CompareTab />
+            </Suspense>
+          }
+        />
         <Route
           path="progression"
           element={
             <ErrorBoundary>
-              <Suspense fallback={<div aria-busy="true" className="min-h-[440px]" />}>
+              <Suspense fallback={<TabFallback />}>
                 <ProgressionTab />
               </Suspense>
             </ErrorBoundary>
@@ -76,7 +109,7 @@ function pageRoutes() {
 export function App() {
   return (
     <Routes>
-      <Route path="tr" element={<LanguageRoot lang="tr" />}>
+      <Route path="tr" caseSensitive element={<LanguageRoot lang="tr" />}>
         {pageRoutes()}
       </Route>
       <Route path="/" element={<LanguageRoot lang="en" />}>

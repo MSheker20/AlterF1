@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { ApiError } from '../../api/client'
+import { apiErrorText } from '../../i18n/apiErrors'
 import { useLocalizedPath } from '../../i18n/useLocalizedPath'
 
 export const DEFAULT_SEASON_ROUTE = '/season/1988?system=1991'
@@ -58,12 +59,14 @@ interface QueryErrorStateProps {
 
 export function QueryErrorState({ error, onRetry }: QueryErrorStateProps) {
   const { t } = useTranslation()
+  const { lang } = useLocalizedPath()
 
   if (error instanceof ApiError) {
+    const { title, detail } = apiErrorText(t, lang, error)
     return (
       <ErrorPanel
-        title={error.title}
-        detail={error.detail}
+        title={title}
+        detail={detail}
         showBackLink={error.status === 400 || error.status === 404}
         onRetry={onRetry}
       />
@@ -86,13 +89,14 @@ export interface StandingsErrorBannerProps {
 
 export function StandingsErrorBanner({ error, onRetry }: StandingsErrorBannerProps) {
   const { t } = useTranslation()
-  const title = error instanceof ApiError ? error.title : t('page.genericErrorTitle')
-  const detail =
-    error instanceof ApiError
-      ? error.detail
-      : error instanceof Error
-        ? error.message
-        : t('page.genericErrorDetail')
+  const { lang } = useLocalizedPath()
+  const apiText = error instanceof ApiError ? apiErrorText(t, lang, error) : null
+  const title = apiText ? apiText.title : t('page.genericErrorTitle')
+  const detail = apiText
+    ? apiText.detail
+    : error instanceof Error
+      ? error.message
+      : t('page.genericErrorDetail')
 
   return (
     <div

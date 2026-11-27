@@ -43,7 +43,9 @@ describe('AboutPage', () => {
   it('explains the systems and credits F1DB', async () => {
     renderAt('/about')
 
-    expect(screen.getByRole('heading', { level: 1, name: 'How AlterF1 works' })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'How AlterF1 works' }),
+    ).toBeInTheDocument()
     expect(await screen.findByRole('rowheader', { name: /1950/ })).toBeInTheDocument()
     expect(screen.getByText('25-18-15-12-10-8-6-4-2-1')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'F1DB on GitHub' })).toBeInTheDocument()

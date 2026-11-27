@@ -22,8 +22,9 @@ export function localizePath(path: string, lang: Language): string {
 
 /** The same page in the other language: strips or adds the /tr prefix. */
 export function switchLanguagePath(pathname: string, target: Language): string {
-  const bare = languageFromPath(pathname) === 'tr' ? pathname.slice(3) || '/' : pathname
-  return localizePath(bare, target)
+  const bare = languageFromPath(pathname) === 'tr' ? pathname.slice(3) : pathname
+  // Collapse leading slashes: "/tr//evil.com" must not become the protocol-relative "//evil.com".
+  return localizePath(`/${bare.replace(/^\/+/, '')}`, target)
 }
 
 void i18n.use(initReactI18next).init({

@@ -23,7 +23,7 @@ export function SeasonNotes({ notes }: { notes: readonly SeasonNote[] }) {
       <button
         type="button"
         aria-expanded={open}
-        aria-controls={panelId}
+        aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((prev) => !prev)}
         className="inline-flex cursor-pointer items-center gap-2 rounded-md py-1 pr-2 text-xs font-semibold text-muted transition-colors hover:text-text"
       >

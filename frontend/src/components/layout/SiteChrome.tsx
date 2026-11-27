@@ -22,7 +22,7 @@ export function BrandLink() {
 
 /** The same page in the other language (EN at /…, TR at /tr/…), keeping the query string. */
 export function LanguageSwitch() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { lang } = useLocalizedPath()
   const location = useLocation()
   const target = lang === 'tr' ? 'en' : 'tr'
@@ -30,6 +30,7 @@ export function LanguageSwitch() {
     <Link
       to={`${switchLanguagePath(location.pathname, target)}${location.search}`}
       hrefLang={target}
+      onClick={() => void i18n.changeLanguage(target)}
       lang={target}
       aria-label={t('lang.switchAria')}
       className="inline-flex h-9 items-center rounded-lg border border-border px-3 text-xs font-semibold text-muted no-underline transition-colors hover:border-[#363d48] hover:text-text"

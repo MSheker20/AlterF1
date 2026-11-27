@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { ChampionSummary, RulesSummary } from '../../api/types'
-import { systemLabel } from '../../i18n/system'
+import { systemContext, systemLabel } from '../../i18n/system'
 import { formatPoints, getSurname } from '../../lib/format'
 import { formatRulesDescription } from '../../lib/scenario'
 
@@ -28,7 +28,11 @@ export function ChampionHeadline({
 
   const kicker = isChanged
     ? t('headline.changedKicker')
-    : t('headline.sameKicker', { season, system: systemLabel(t, selectedSystemId) })
+    : t('headline.sameKicker', {
+        season,
+        system: systemLabel(t, selectedSystemId),
+        context: systemContext(selectedSystemId),
+      })
 
   let message: string
   if (isChanged) {
@@ -57,7 +61,7 @@ export function ChampionHeadline({
       >
         <span
           className={`block text-[10px] font-bold uppercase tracking-[0.08em] ${
-            isChanged ? 'text-accent' : 'text-muted'
+            isChanged ? 'text-accent-text' : 'text-muted'
           }`}
         >
           {kicker}

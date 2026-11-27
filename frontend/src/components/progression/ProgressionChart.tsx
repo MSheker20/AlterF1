@@ -377,7 +377,8 @@ export function ProgressionChart({
                 className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all ${
                   isVisible
                     ? 'border-[#3a4250] bg-surface-2 text-text'
-                    : 'border-border bg-bg text-muted opacity-55 hover:opacity-85'
+                    : // Off: dim only the line sample, so the text keeps AA contrast.
+                      'border-border border-dashed bg-bg text-muted hover:border-[#3a4250] hover:text-text'
                 }`}
               >
                 <svg
@@ -385,7 +386,7 @@ export function ProgressionChart({
                   width="16"
                   height="6"
                   viewBox="0 0 16 6"
-                  className="shrink-0"
+                  className={`shrink-0 ${isVisible ? '' : 'opacity-35'}`}
                 >
                   <line
                     x1="0"

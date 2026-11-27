@@ -8,6 +8,8 @@
   --color-text: #e8eaed;
   --color-muted: #9aa1ab;
   --color-accent: #e10600;
+  /* Accent for small text: #e10600 is only 3.6:1 on the surfaces (WCAG AA needs 4.5:1). */
+  --color-accent-text: #ff4d40;
   --color-ok: #22c55e;
   --color-err: #ef4444;
   --color-gold: #f5c542;

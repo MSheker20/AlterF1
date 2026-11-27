@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { systemContext } from '../../i18n/system'
 import type { CompareResponse, SystemId } from '../../api/types'
 import { sortDrivers } from '../../lib/compare'
 import type { CompareSortKey } from '../../lib/compare'
@@ -23,6 +24,7 @@ function systemDisplayLabel(t: TFunction, systemId: string): string {
 function selectSystemAria(
   t: TFunction,
   system: string,
+  context: 'custom' | undefined,
   isReal: boolean,
   championSurname: string | null,
   championChanged: boolean,
@@ -39,8 +41,8 @@ function selectSystemAria(
     )
   }
   return details.length > 0
-    ? t('compareMatrix.selectSystemAria', { system, details: details.join(', ') })
-    : t('compareMatrix.selectSystemAriaPlain', { system })
+    ? t('compareMatrix.selectSystemAria', { system, context, details: details.join(', ') })
+    : t('compareMatrix.selectSystemAriaPlain', { system, context })
 }
 
 export function CompareMatrix({
@@ -112,7 +114,7 @@ export function CompareMatrix({
                       onClick={() => setSortKey('real')}
                       className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                         activeSortKey === 'real'
-                          ? 'border-accent/60 bg-accent/15 text-accent'
+                          ? 'border-accent/60 bg-accent/15 text-accent-text'
                           : 'border-transparent text-muted hover:border-border hover:bg-surface-2 hover:text-text'
                       }`}
                     >
@@ -146,15 +148,11 @@ export function CompareMatrix({
                       <div className="flex items-start justify-center gap-1">
                         <button
                           type="button"
-                          aria-label={selectSystemAria(
-                            t,
-                            sysLabel,
-                            isReal,
-                            championSurname,
-                            sys.championChanged,
-                          )}
                           aria-current={isSelected ? 'true' : undefined}
-                          title={t('compareMatrix.selectSystemTitle', { system: sysLabel })}
+                          title={t('compareMatrix.selectSystemTitle', {
+                            system: sysLabel,
+                            context: systemContext(sys.id),
+                          })}
                           onClick={() => {
                             if (isKnownSystemId(sys.id) && sys.id !== selectedSystem) {
                               onSelectSystem(sys.id)
@@ -162,7 +160,21 @@ export function CompareMatrix({
                           }}
                           className="flex cursor-pointer flex-col items-center gap-0.5 rounded px-1.5 py-0.5 transition-colors hover:bg-surface-2"
                         >
-                          <span className="inline-flex items-center gap-1 text-xs font-bold tabular-nums text-text">
+                          {/* Named by this sentence (label-in-name): the visible "1950 / PRO" is decoration. */}
+                          <span className="sr-only">
+                            {selectSystemAria(
+                              t,
+                              sysLabel,
+                              systemContext(sys.id),
+                              isReal,
+                              championSurname,
+                              sys.championChanged,
+                            )}
+                          </span>
+                          <span
+                            aria-hidden="true"
+                            className="inline-flex items-center gap-1 text-xs font-bold tabular-nums text-text"
+                          >
                             <span>{sysLabel}</span>
                             {isReal && (
                               <span
@@ -177,7 +189,7 @@ export function CompareMatrix({
                             <span
                               aria-hidden="true"
                               className={`text-[10px] font-extrabold uppercase leading-none tracking-[0.06em] ${
-                                sys.championChanged ? 'text-accent' : 'text-muted'
+                                sys.championChanged ? 'text-accent-text' : 'text-muted'
                               }`}
                             >
                               {championCode}
@@ -187,13 +199,19 @@ export function CompareMatrix({
 
                         <button
                           type="button"
-                          aria-label={t('compareMatrix.sortBySystemAria', { system: sysLabel })}
+                          aria-label={t('compareMatrix.sortBySystemAria', {
+                            system: sysLabel,
+                            context: systemContext(sys.id),
+                          })}
                           aria-pressed={isSorted}
-                          title={t('compareMatrix.sortBySystemAria', { system: sysLabel })}
+                          title={t('compareMatrix.sortBySystemAria', {
+                            system: sysLabel,
+                            context: systemContext(sys.id),
+                          })}
                           onClick={() => setSortKey(isSorted ? 'real' : sys.id)}
                           className={`mt-0.5 inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                             isSorted
-                              ? 'border-accent/60 bg-accent/15 text-accent'
+                              ? 'border-accent/60 bg-accent/15 text-accent-text'
                               : 'border-transparent text-muted hover:border-border hover:bg-surface-2 hover:text-text'
                           }`}
                         >

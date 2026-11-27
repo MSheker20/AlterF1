@@ -1,4 +1,4 @@
-const KNOWN_TEAM_COLORS: Record<string, string> = {
+export const KNOWN_TEAM_COLORS: Readonly<Record<string, string>> = {
   // Modern & iconic constructors
   ferrari: '#dc2626',
   mclaren: '#ff8000',

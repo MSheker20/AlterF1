@@ -1,6 +1,11 @@
 # AlterF1
 
-Replay real Formula 1 seasons (1950–today) under historical points systems and see how the championship standings would have changed.
+Replay real Formula 1 seasons (1950–today) under five historical points systems (`1950`, `1961`, `1991`, `2003`, `2010`) and see how each championship would have changed.
+
+- **Discovery home page:** lists every season where another points system crowns a different champion, plus a year picker to jump straight into any season.
+- **Scenarios:** remove drivers or races, toggle sprint and fastest-lap points, switch real-life multiplier presets (`historical`, `pure`, `all`), or build a custom points system—all encoded in the URL.
+- **Compare & progression:** view a side-by-side matrix across all systems and a cumulative points progression chart marking the round the title was mathematically decided.
+- **Bilingual & shareable:** available in English at `/` and Turkish at `/tr`, with per-season Open Graph preview images for shared links.
 
 ## Stack
 
@@ -26,8 +31,34 @@ Replay real Formula 1 seasons (1950–today) under historical points systems and
    ```
 
 3. Open the app and verify the API:
-   - Frontend: http://localhost:5173
+   - Frontend: http://localhost:5173 (EN) and http://localhost:5173/tr (TR)
    - API health: http://localhost:8080/api/v1/health
+
+## End-to-end tests
+
+Start the full stack with Docker Compose (for example `docker compose -f infra/docker-compose.yml up -d --build --wait`), then install Chromium and run the Playwright smoke suite:
+
+```bash
+cd frontend && npx playwright install chromium && npm run e2e
+```
+
+Set `E2E_BASE_URL` to run the suite against a different URL (defaults to `http://localhost:5173`).
+
+## API
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/v1/seasons` | Available seasons and their real-life champions |
+| `GET /api/v1/systems` | The five historical points systems and their full rules |
+| `GET /api/v1/seasons/{year}/standings` | Recalculated driver standings, race results, headline summary, and scoring notes |
+| `GET /api/v1/seasons/{year}/compare` | Side-by-side ranking matrix across all five systems (plus an active custom system) |
+| `GET /api/v1/seasons/{year}/progression` | Cumulative points by round and the race where the championship was decided |
+| `GET /api/v1/highlights` | Seasons where another points system crowns a different champion |
+| `GET /og/season/{year}.png` | Open Graph preview image for sharing a season |
+
+Standings (and progression / OG) query parameters: `system`, `preset` (`historical` \| `pure` \| `all`), `exclude`, `skip`, `sprint`, `fl`, and custom-system parameters `custom`, `customFl`, `customSprint`, `customBest`.
+
+API errors are returned as RFC 9457 Problem Details (`application/problem+json`).
 
 ## F1DB data
 

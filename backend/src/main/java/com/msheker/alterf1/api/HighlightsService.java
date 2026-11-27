@@ -58,7 +58,10 @@ public class HighlightsService {
                 if (result == null) {
                     long start = System.nanoTime();
                     result = compute();
-                    cached = result;
+                    // An empty result means the data was not loaded yet: try again next time.
+                    if (!result.isEmpty()) {
+                        cached = result;
+                    }
                     log.info("Computed {} highlights in {} ms", result.size(), (System.nanoTime() - start) / 1_000_000);
                 }
             }

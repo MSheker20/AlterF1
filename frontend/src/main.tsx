@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MotionConfig } from 'motion/react'
 import { BrowserRouter } from 'react-router'
 import './index.css'
 import './i18n'
@@ -20,9 +19,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <MotionConfig reducedMotion="user">
-          <App />
-        </MotionConfig>
+        <App />
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

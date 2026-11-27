@@ -46,5 +46,7 @@ describe('language paths', () => {
     expect(switchLanguagePath('/tr/season/1988/compare', 'en')).toBe('/season/1988/compare')
     expect(switchLanguagePath('/tr', 'en')).toBe('/')
     expect(switchLanguagePath('/about', 'tr')).toBe('/tr/about')
+    // Never a protocol-relative link off the site.
+    expect(switchLanguagePath('/tr//evil.com', 'en')).toBe('/evil.com')
   })
 })

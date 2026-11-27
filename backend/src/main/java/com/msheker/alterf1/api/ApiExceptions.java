@@ -37,6 +37,11 @@ public class ApiExceptions extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    /** True for the client's own mistakes (bad input, unknown season), as opposed to server faults. */
+    public static boolean isClientError(Throwable e) {
+        return e instanceof BadRequestException || e instanceof SeasonNotFoundException;
+    }
+
     @ExceptionHandler(Exception.class)
     ProblemDetail unexpected(Exception e) {
         log.error("Unexpected API error", e);

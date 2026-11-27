@@ -11,6 +11,8 @@ const SYSTEM_RULE_KEYS = {
   '2010': 'about.system2010',
 } as const
 
+const SYSTEM_IDS = Object.keys(SYSTEM_RULE_KEYS) as (keyof typeof SYSTEM_RULE_KEYS)[]
+
 const NOTE_SECTIONS = [
   ['about.halfPointsHeading', 'about.halfPointsBody'],
   ['about.doublePointsHeading', 'about.doublePointsBody'],
@@ -47,24 +49,24 @@ export function AboutPage() {
                 </tr>
               </thead>
               <tbody>
-                {(systemsQuery.data ?? []).map((system) => (
-                  <tr key={system.id} className="border-t border-border align-top">
-                    <th scope="row" className="px-3 py-2.5 font-semibold tabular-nums text-text">
-                      {system.id}
-                      <span className="block text-xs font-normal text-muted">
-                        {system.firstSeason}–{system.lastSeason ?? ''}
-                      </span>
-                    </th>
-                    <td className="px-3 py-2.5 tabular-nums text-text">
-                      {system.racePoints.map(formatPoints).join('-')}
-                    </td>
-                    <td className="px-3 py-2.5 text-muted">
-                      {system.id in SYSTEM_RULE_KEYS
-                        ? t(SYSTEM_RULE_KEYS[system.id as keyof typeof SYSTEM_RULE_KEYS])
-                        : null}
-                    </td>
-                  </tr>
-                ))}
+                {/* Rows are known up front, so the table does not shift the page when data arrives. */}
+                {SYSTEM_IDS.map((id) => {
+                  const system = systemsQuery.data?.find((s) => s.id === id)
+                  return (
+                    <tr key={id} className="border-t border-border align-top">
+                      <th scope="row" className="px-3 py-2.5 font-semibold tabular-nums text-text">
+                        {id}
+                        <span className="block min-h-4 text-xs font-normal text-muted">
+                          {system ? `${system.firstSeason}–${system.lastSeason ?? ''}` : ''}
+                        </span>
+                      </th>
+                      <td className="px-3 py-2.5 tabular-nums text-text">
+                        {system ? system.racePoints.map(formatPoints).join('-') : '…'}
+                      </td>
+                      <td className="px-3 py-2.5 text-muted">{t(SYSTEM_RULE_KEYS[id])}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
