@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
 import type { RaceSummary, StandingRow } from '../../api/types'
-import { strings } from '../../i18n/strings'
+import { systemContext, systemLabel } from '../../i18n/system'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 import { RaceResultsGrid } from './RaceResultsGrid'
@@ -27,6 +28,7 @@ export function DetailSheet({
   restoreFocusTo,
   onClose,
 }: DetailSheetProps) {
+  const { t } = useTranslation()
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -143,7 +145,7 @@ export function DetailSheet({
             <button
               ref={closeButtonRef}
               type="button"
-              aria-label={strings.detail.closeSheet}
+              aria-label={t('detail.closeSheet')}
               onClick={onClose}
               className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-2 text-lg leading-none text-text transition-colors hover:border-[#3d4552]"
             >
@@ -154,14 +156,14 @@ export function DetailSheet({
           <div
             role="region"
             tabIndex={0}
-            aria-label={strings.detail.sheetBodyAria}
+            aria-label={t('detail.sheetBodyAria')}
             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 focus-visible:outline-offset-[-2px]"
           >
             <SheetStats row={row} season={season} systemId={systemId} />
 
             <div>
               <h3 className="mb-2 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-                {strings.detail.raceResultsHeading(races.length)}
+                {t('detail.raceResultsHeading', { count: races.length })}
               </h3>
               <RaceResultsGrid races={races} results={row.results} variant="chips" />
             </div>
@@ -179,7 +181,8 @@ interface SheetStatsProps {
 }
 
 function SheetStats({ row, season, systemId }: SheetStatsProps) {
-  const delta = deltaLabel(row.positionChange)
+  const { t } = useTranslation()
+  const delta = deltaLabel(t, row.positionChange)
   const deltaColor =
     delta.direction === 'up'
       ? 'text-ok'
@@ -191,7 +194,10 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
-          {strings.detail.systemLabel(systemId)}
+          {t('detail.systemLabel', {
+            context: systemContext(systemId),
+            system: systemLabel(t, systemId),
+          })}
         </dt>
         <dd className="flex flex-col gap-0.5 tabular-nums">
           <span className="flex items-baseline gap-1.5 text-[15px] font-bold text-text">
@@ -202,14 +208,14 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
             </span>
           </span>
           <span className="text-[11px] font-normal text-muted">
-            {strings.detail.positionBadge(row.position)}
+            {t('detail.positionBadge', { position: row.position })}
           </span>
         </dd>
       </div>
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
-          {strings.detail.realLabel(season)}
+          {t('detail.realLabel', { season })}
         </dt>
         <dd className="flex flex-col gap-0.5 tabular-nums">
           <span className="text-[15px] font-bold text-text">
@@ -217,22 +223,22 @@ function SheetStats({ row, season, systemId }: SheetStatsProps) {
           </span>
           <span className="text-[11px] font-normal text-muted">
             {row.realPosition !== null
-              ? strings.detail.positionBadge(row.realPosition)
-              : strings.detail.unclassified}
+              ? t('detail.positionBadge', { position: row.realPosition })
+              : t('detail.unclassified')}
           </span>
         </dd>
       </div>
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
-          {strings.detail.winsLabel}
+          {t('detail.winsLabel')}
         </dt>
         <dd className="text-[15px] font-bold tabular-nums text-text">{row.wins}</dd>
       </div>
 
       <div className="flex flex-col gap-0.5 rounded-lg border border-border bg-bg px-2.5 py-2">
         <dt className="text-[10px] font-bold uppercase tracking-[0.05em] text-muted">
-          {strings.detail.podiumsLabel}
+          {t('detail.podiumsLabel')}
         </dt>
         <dd className="text-[15px] font-bold tabular-nums text-text">{row.podiums}</dd>
       </div>

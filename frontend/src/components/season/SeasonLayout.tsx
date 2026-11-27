@@ -1,11 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { useSeasons, useStandings, useSystems } from '../../api/standings'
 import type { StandingsResponse, SystemId } from '../../api/types'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
-import { strings } from '../../i18n/strings'
+import type { Language } from '../../i18n'
+import { useLocalizedPath } from '../../i18n/useLocalizedPath'
 import {
   countActive,
   countActivePayload,
@@ -19,7 +22,7 @@ import {
   scenarioToParams,
 } from '../../lib/scenario'
 import type { Scenario } from '../../lib/scenario'
-import { BrandLink, SiteFooter } from '../layout/SiteChrome'
+import { AboutLink, BrandLink, LanguageSwitch, SiteFooter } from '../layout/SiteChrome'
 import { ActiveScenarioChips } from '../scenario/ActiveScenarioChips'
 import { ScenarioPanel } from '../scenario/ScenarioPanel'
 import type { ScenarioInlineErrors } from '../scenario/ScenarioPanel'
@@ -58,16 +61,52 @@ function tabLinkClass(isActive: boolean): string {
   }`
 }
 
+type ServerErrorField =
+  | 'custom'
+  | 'customFl'
+  | 'customSprint'
+  | 'customBest'
+  | 'exclude'
+  | 'skip'
+  | 'sprint'
+  | 'fl'
+  | 'preset'
+  | 'system'
+
+const SERVER_ERROR_FIELDS: ReadonlySet<string> = new Set<ServerErrorField>([
+  'custom',
+  'customFl',
+  'customSprint',
+  'customBest',
+  'exclude',
+  'skip',
+  'sprint',
+  'fl',
+  'preset',
+  'system',
+])
+
+function isServerErrorField(field: string | undefined): field is ServerErrorField {
+  return field !== undefined && SERVER_ERROR_FIELDS.has(field)
+}
+
 function mapInlineScenarioError(
   error: unknown,
   panelOpen: boolean,
   isCustomSystem: boolean,
+  t: TFunction,
+  lang: Language,
 ): { inlineErrors: ScenarioInlineErrors; handledInPanel: boolean } {
   if (!panelOpen || !(error instanceof ApiError) || error.status !== 400) {
     return { inlineErrors: {}, handledInPanel: false }
   }
 
-  const detail = error.detail || error.title
+  const detail =
+    lang === 'tr'
+      ? isServerErrorField(error.field)
+        ? t(`serverErrors.${error.field}`)
+        : t('serverErrors.generic')
+      : error.detail || error.title
 
   switch (error.field) {
     case 'custom':
@@ -109,6 +148,8 @@ interface SeasonLayoutProps {
 }
 
 export function SeasonLayout({ children }: SeasonLayoutProps) {
+  const { t } = useTranslation()
+  const { lang, to } = useLocalizedPath()
   const { year: rawYear } = useParams<{ year: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const location = useLocation()
@@ -155,8 +196,10 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
         standingsQuery.isError ? standingsQuery.error : null,
         scenarioOpen,
         scenario.system === 'custom',
+        t,
+        lang,
       ),
-    [standingsQuery.isError, standingsQuery.error, scenarioOpen, scenario.system],
+    [standingsQuery.isError, standingsQuery.error, scenarioOpen, scenario.system, t, lang],
   )
 
   const showStandingsPageError = standingsQuery.isError && !handledInPanel
@@ -213,9 +256,9 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
       const hasExplicitSystem = isKnownSystemId(rawSystem)
       const nextScenario = scenarioForYearChange(scenario, hasExplicitSystem, nextYear)
       const tabSuffix = getTabSuffix(location.pathname)
-      navigate(`/season/${nextYear}${tabSuffix}?${scenarioToParams(nextScenario).toString()}`)
+      navigate(to(`/season/${nextYear}${tabSuffix}?${scenarioToParams(nextScenario).toString()}`))
     },
-    [location.pathname, navigate, scenario, searchParams],
+    [location.pathname, navigate, scenario, searchParams, to],
   )
 
   const handleResetScenario = useCallback(() => {
@@ -271,7 +314,10 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
     <div className="flex min-h-dvh flex-col bg-bg text-text">
       <header className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-          <BrandLink />
+          <div className="flex items-center gap-4">
+            <BrandLink />
+            <AboutLink />
+          </div>
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <YearSelect
@@ -292,7 +338,11 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
               disabled={parsedYear === null}
               aria-expanded={scenarioOpen}
               aria-haspopup="dialog"
-              aria-label={strings.scenario.buttonAriaWithCount(activeScenarioCount)}
+              aria-label={
+                activeScenarioCount === 0
+                  ? t('scenario.buttonLabel')
+                  : t('scenario.buttonAriaWithCount', { count: activeScenarioCount })
+              }
               onClick={() => setScenarioOpen((prev) => !prev)}
               className={`inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:text-[13px] ${
                 scenarioOpen || activeScenarioCount > 0
@@ -300,7 +350,7 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
                   : 'border-border bg-surface text-text hover:border-[#363d48]'
               }`}
             >
-              <span>{strings.scenario.buttonLabel}</span>
+              <span>{t('scenario.buttonLabel')}</span>
               {activeScenarioCount > 0 && (
                 <span
                   aria-hidden="true"
@@ -310,6 +360,7 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
                 </span>
               )}
             </button>
+            <LanguageSwitch />
           </div>
         </div>
       </header>
@@ -318,11 +369,11 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
         {parsedYear === null || contextValue === null ? (
           <section className="max-w-lg space-y-4">
             <h1 className="text-2xl font-bold tracking-tight text-text">
-              {strings.page.invalidSeasonTitle}
+              {t('page.invalidSeasonTitle')}
             </h1>
             <ErrorPanel
-              title={strings.page.invalidSeasonTitle}
-              detail={strings.page.invalidSeasonDetail(rawYear ?? '')}
+              title={t('page.invalidSeasonTitle')}
+              detail={t('page.invalidSeasonDetail', { rawYear: rawYear ?? '' })}
               showBackLink
             />
           </section>
@@ -331,7 +382,7 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
             <div className="space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h1 className="text-xl font-bold tracking-tight tabular-nums text-text sm:text-2xl">
-                  {strings.page.seasonHeading(parsedYear)}
+                  {t('page.seasonHeading', { year: parsedYear })}
                 </h1>
               </div>
 
@@ -366,29 +417,29 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
               />
 
               <nav
-                aria-label={strings.tabs.navAriaLabel}
+                aria-label={t('tabs.navAriaLabel')}
                 className="flex items-center gap-1 border-b border-border pt-1"
               >
                 <NavLink
-                  to={{ pathname: `/season/${parsedYear}`, search: location.search }}
+                  to={{ pathname: to(`/season/${parsedYear}`), search: location.search }}
                   end
                   className={({ isActive }) => tabLinkClass(isActive)}
                 >
-                  {strings.tabs.tower}
+                  {t('tabs.tower')}
                 </NavLink>
                 <NavLink
-                  to={{ pathname: `/season/${parsedYear}/compare`, search: location.search }}
+                  to={{ pathname: to(`/season/${parsedYear}/compare`), search: location.search }}
                   end
                   className={({ isActive }) => tabLinkClass(isActive)}
                 >
-                  {strings.tabs.compare}
+                  {t('tabs.compare')}
                 </NavLink>
                 <NavLink
-                  to={{ pathname: `/season/${parsedYear}/progression`, search: location.search }}
+                  to={{ pathname: to(`/season/${parsedYear}/progression`), search: location.search }}
                   end
                   className={({ isActive }) => tabLinkClass(isActive)}
                 >
-                  {strings.tabs.progression}
+                  {t('tabs.progression')}
                 </NavLink>
               </nav>
             </div>

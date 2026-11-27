@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { RefObject } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AnimatePresence, motion } from 'motion/react'
 import type {
   CustomSystemConfig,
@@ -8,7 +9,6 @@ import type {
   RaceSummary,
   RulesSummary,
 } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import {
   createDefaultCustomConfig,
   customFromRules,
@@ -106,6 +106,7 @@ export function ScenarioPanel({
   onReset,
   onClose,
 }: ScenarioPanelProps) {
+  const { t } = useTranslation()
   const titleId = useId()
   const copyStatusId = useId()
   const dialogRef = useRef<HTMLDivElement | null>(null)
@@ -356,13 +357,13 @@ export function ScenarioPanel({
             }`}
           >
             <h2 id={titleId} className="m-0 text-base font-bold leading-tight text-text">
-              {strings.scenario.title}
+              {t('scenario.title')}
             </h2>
 
             <button
               ref={closeButtonRef}
               type="button"
-              aria-label={strings.scenario.closePanel}
+              aria-label={t('scenario.closePanel')}
               onClick={onClose}
               className="inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border bg-surface-2 text-lg leading-none text-text transition-colors hover:border-[#3d4552]"
             >
@@ -373,7 +374,7 @@ export function ScenarioPanel({
           <div
             role="region"
             tabIndex={0}
-            aria-label={strings.scenario.panelBodyAria}
+            aria-label={t('scenario.panelBodyAria')}
             className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-4 focus-visible:outline-offset-[-2px]"
           >
             {inlineErrors.general && (
@@ -431,9 +432,9 @@ export function ScenarioPanel({
               className={copyState === 'failed' ? 'm-0 text-[11px] text-muted' : 'sr-only'}
             >
               {copyState === 'copied'
-                ? strings.scenario.copied
+                ? t('scenario.copied')
                 : copyState === 'failed'
-                  ? strings.scenario.copyFailed
+                  ? t('scenario.copyFailed')
                   : ''}
             </p>
 
@@ -457,7 +458,7 @@ export function ScenarioPanel({
                 }}
                 className="inline-flex h-9 flex-1 cursor-pointer items-center justify-center rounded-md border border-border bg-surface-2 px-3 text-xs font-semibold text-text transition-colors hover:border-[#3d4552] hover:bg-[#222731]"
               >
-                {copyState === 'copied' ? strings.scenario.copied : strings.scenario.copyLink}
+                {copyState === 'copied' ? t('scenario.copied') : t('scenario.copyLink')}
               </button>
 
               <button
@@ -466,7 +467,7 @@ export function ScenarioPanel({
                 onClick={handleReset}
                 className="inline-flex h-9 cursor-pointer items-center justify-center rounded-md border border-border px-3.5 text-xs font-semibold text-muted transition-colors hover:border-[#3d4552] hover:bg-surface-2 hover:text-text disabled:cursor-not-allowed disabled:opacity-45"
               >
-                {strings.scenario.reset}
+                {t('scenario.reset')}
               </button>
             </div>
           </div>

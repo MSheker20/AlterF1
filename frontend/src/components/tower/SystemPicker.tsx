@@ -1,5 +1,5 @@
+import { useTranslation } from 'react-i18next'
 import type { BuiltinSystemId, ScoringSystem, SystemId } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import { BUILTIN_SYSTEM_IDS } from '../../lib/scenario'
 
 interface SystemPickerProps {
@@ -17,6 +17,7 @@ export function SystemPicker({
   onChange,
   disabled = false,
 }: SystemPickerProps) {
+  const { t } = useTranslation()
   const builtinIds: readonly BuiltinSystemId[] =
     systems.length > 0 ? systems.map((s) => s.id) : BUILTIN_SYSTEM_IDS
   const systemIds: readonly SystemId[] = [...builtinIds, 'custom']
@@ -24,13 +25,13 @@ export function SystemPicker({
   return (
     <div
       role="group"
-      aria-label={strings.controls.scoringSystemLabel}
+      aria-label={t('controls.scoringSystemLabel')}
       className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-border bg-surface p-[3px]"
     >
       {systemIds.map((systemId) => {
         const isActive = systemId === selectedSystem
         const isReal = realSystem === systemId
-        const label = systemId === 'custom' ? strings.controls.customSystemLabel : systemId
+        const label = systemId === 'custom' ? t('controls.customSystemLabel') : systemId
 
         return (
           <button
@@ -38,7 +39,7 @@ export function SystemPicker({
             type="button"
             disabled={disabled}
             aria-pressed={isActive}
-            title={isReal ? strings.controls.realSystemTooltip : undefined}
+            title={isReal ? t('controls.realSystemTooltip') : undefined}
             onClick={() => {
               if (!isActive) {
                 onChange(systemId)
@@ -57,7 +58,7 @@ export function SystemPicker({
                   aria-hidden="true"
                   className="h-1.5 w-1.5 rounded-full bg-accent"
                 />
-                <span className="sr-only"> ({strings.controls.realSystemSrOnly})</span>
+                <span className="sr-only"> ({t('controls.realSystemSrOnly')})</span>
               </>
             )}
           </button>

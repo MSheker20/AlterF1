@@ -1,16 +1,18 @@
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { StandingRow } from '../api/types'
 import { QueryErrorState } from '../components/season/ErrorPanel'
 import { SeasonLayout } from '../components/season/SeasonLayout'
 import { useSeasonLayout } from '../components/season/seasonLayoutContext'
 import { CompareSlope } from '../components/tower/CompareSlope'
 import { DetailSheet } from '../components/tower/DetailSheet'
+import { SeasonNotes } from '../components/tower/SeasonNotes'
 import { StandingsTower } from '../components/tower/StandingsTower'
-import { strings } from '../i18n/strings'
 
 const SKELETON_ROW_KEYS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
 export function TowerTab() {
+  const { t } = useTranslation()
   const {
     year,
     isDesktop,
@@ -98,7 +100,7 @@ export function TowerTab() {
         <div className="space-y-4">
           <div
             role="group"
-            aria-label={strings.controls.viewModeLabel}
+            aria-label={t('controls.viewModeLabel')}
             className="inline-flex w-full rounded-lg border border-border bg-surface p-[3px] sm:w-auto"
           >
             <button
@@ -111,7 +113,7 @@ export function TowerTab() {
                   : 'text-muted hover:text-text'
               }`}
             >
-              {strings.controls.towerTab}
+              {t('controls.towerTab')}
             </button>
             <button
               type="button"
@@ -123,7 +125,7 @@ export function TowerTab() {
                   : 'text-muted hover:text-text'
               }`}
             >
-              {strings.controls.compareTab}
+              {t('controls.compareTab')}
             </button>
           </div>
 
@@ -159,6 +161,8 @@ export function TowerTab() {
           )}
         </div>
       )}
+
+      {displayStandings && <SeasonNotes notes={displayStandings.notes} />}
     </>
   )
 }

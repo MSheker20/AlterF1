@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import type { CompareResponse, SystemId } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import { sortDrivers } from '../../lib/compare'
 import type { CompareSortKey } from '../../lib/compare'
 import { deltaLabel, fallbackDriverCode, formatPoints, getSurname } from '../../lib/format'
@@ -15,8 +16,31 @@ interface CompareMatrixProps {
 
 const INITIAL_VISIBLE_ROWS = 20
 
-function systemDisplayLabel(systemId: string): string {
-  return systemId === 'custom' ? strings.controls.customSystemLabel : systemId
+function systemDisplayLabel(t: TFunction, systemId: string): string {
+  return systemId === 'custom' ? t('controls.customSystemLabel') : systemId
+}
+
+function selectSystemAria(
+  t: TFunction,
+  system: string,
+  isReal: boolean,
+  championSurname: string | null,
+  championChanged: boolean,
+): string {
+  const details: string[] = []
+  if (isReal) {
+    details.push(t('compareMatrix.detailHistorical'))
+  }
+  if (championSurname) {
+    details.push(
+      championChanged
+        ? t('compareMatrix.detailChampionChanged', { surname: championSurname })
+        : t('compareMatrix.detailChampion', { surname: championSurname }),
+    )
+  }
+  return details.length > 0
+    ? t('compareMatrix.selectSystemAria', { system, details: details.join(', ') })
+    : t('compareMatrix.selectSystemAriaPlain', { system })
 }
 
 export function CompareMatrix({
@@ -24,6 +48,7 @@ export function CompareMatrix({
   selectedSystem,
   onSelectSystem,
 }: CompareMatrixProps) {
+  const { t } = useTranslation()
   const captionId = useId()
   const [sortKey, setSortKey] = useState<CompareSortKey>('real')
   const [showAll, setShowAll] = useState(false)
@@ -48,7 +73,7 @@ export function CompareMatrix({
   if (data.drivers.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted">
-        {strings.compareMatrix.empty}
+        {t('compareMatrix.empty')}
       </div>
     )
   }
@@ -59,7 +84,7 @@ export function CompareMatrix({
   return (
     <section aria-labelledby={captionId} className="space-y-2.5">
       <p id={captionId} className="m-0 text-xs text-muted">
-        {strings.compareMatrix.caption(data.season)}
+        {t('compareMatrix.caption', { season: data.season })}
       </p>
 
       <div className="overflow-hidden rounded-lg border border-border bg-bg">
@@ -77,13 +102,13 @@ export function CompareMatrix({
                 >
                   <div className="flex w-[144px] items-center justify-between gap-2 sm:w-[204px]">
                     <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-                      {strings.compareMatrix.driverColumn}
+                      {t('compareMatrix.driverColumn')}
                     </span>
                     <button
                       type="button"
-                      aria-label={strings.compareMatrix.sortByRealAria}
+                      aria-label={t('compareMatrix.sortByRealAria')}
                       aria-pressed={activeSortKey === 'real'}
-                      title={strings.compareMatrix.sortByRealAria}
+                      title={t('compareMatrix.sortByRealAria')}
                       onClick={() => setSortKey('real')}
                       className={`inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                         activeSortKey === 'real'
@@ -100,7 +125,7 @@ export function CompareMatrix({
                   const isSelected = sys.id === selectedSystem
                   const isReal = data.realSystem === sys.id
                   const isSorted = activeSortKey === sys.id
-                  const sysLabel = systemDisplayLabel(sys.id)
+                  const sysLabel = systemDisplayLabel(t, sys.id)
                   const championCode = sys.champion
                     ? (driverCodeById.get(sys.champion.driverId) ??
                       fallbackDriverCode('', sys.champion.driverName))
@@ -121,14 +146,15 @@ export function CompareMatrix({
                       <div className="flex items-start justify-center gap-1">
                         <button
                           type="button"
-                          aria-label={strings.compareMatrix.selectSystemAria(
+                          aria-label={selectSystemAria(
+                            t,
                             sysLabel,
                             isReal,
                             championSurname,
                             sys.championChanged,
                           )}
                           aria-current={isSelected ? 'true' : undefined}
-                          title={strings.compareMatrix.selectSystemTitle(sysLabel)}
+                          title={t('compareMatrix.selectSystemTitle', { system: sysLabel })}
                           onClick={() => {
                             if (isKnownSystemId(sys.id) && sys.id !== selectedSystem) {
                               onSelectSystem(sys.id)
@@ -141,7 +167,7 @@ export function CompareMatrix({
                             {isReal && (
                               <span
                                 aria-hidden="true"
-                                title={strings.controls.realSystemTooltip}
+                                title={t('controls.realSystemTooltip')}
                                 className="h-1.5 w-1.5 rounded-full bg-accent"
                               />
                             )}
@@ -161,9 +187,9 @@ export function CompareMatrix({
 
                         <button
                           type="button"
-                          aria-label={strings.compareMatrix.sortBySystemAria(sysLabel)}
+                          aria-label={t('compareMatrix.sortBySystemAria', { system: sysLabel })}
                           aria-pressed={isSorted}
-                          title={strings.compareMatrix.sortBySystemAria(sysLabel)}
+                          title={t('compareMatrix.sortBySystemAria', { system: sysLabel })}
                           onClick={() => setSortKey(isSorted ? 'real' : sys.id)}
                           className={`mt-0.5 inline-flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border transition-colors ${
                             isSorted
@@ -234,7 +260,7 @@ export function CompareMatrix({
                               —
                             </span>
                             <span className="sr-only">
-                              {strings.compareMatrix.missingCellAria}
+                              {t('compareMatrix.missingCellAria')}
                             </span>
                           </td>
                         )
@@ -244,7 +270,7 @@ export function CompareMatrix({
                         driver.realPosition !== null && cell.position !== driver.realPosition
                           ? driver.realPosition - cell.position
                           : null
-                      const delta = diffVsReal !== null ? deltaLabel(diffVsReal) : null
+                      const delta = diffVsReal !== null ? deltaLabel(t, diffVsReal) : null
                       const deltaClass =
                         delta?.direction === 'up'
                           ? 'text-ok'
@@ -303,8 +329,8 @@ export function CompareMatrix({
               className="w-full cursor-pointer rounded-md border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-text transition-colors hover:border-[#3a4250] hover:bg-[#222731]"
             >
               {showAll
-                ? strings.tower.showTop(INITIAL_VISIBLE_ROWS)
-                : strings.tower.showAll(sortedDrivers.length)}
+                ? t('tower.showTop', { limit: INITIAL_VISIBLE_ROWS })
+                : t('tower.showAll', { total: sortedDrivers.length })}
             </button>
           </div>
         )}

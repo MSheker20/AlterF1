@@ -1,5 +1,6 @@
+import { useTranslation } from 'react-i18next'
 import type { ChampionSummary, RulesSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
+import { systemLabel } from '../../i18n/system'
 import { formatPoints, getSurname } from '../../lib/format'
 import { formatRulesDescription } from '../../lib/scenario'
 
@@ -22,27 +23,28 @@ export function ChampionHeadline({
   selectedSystemId,
   activeScenarioCount,
 }: ChampionHeadlineProps) {
+  const { t } = useTranslation()
   const isChanged = championChanged && champion !== null && realChampion !== null
 
   const kicker = isChanged
-    ? strings.headline.changedKicker
-    : strings.headline.sameKicker(season, selectedSystemId)
+    ? t('headline.changedKicker')
+    : t('headline.sameKicker', { season, system: systemLabel(t, selectedSystemId) })
 
   let message: string
   if (isChanged) {
-    message = strings.headline.championChanges(
-      getSurname(champion.driverName),
-      formatPoints(champion.points),
-      getSurname(realChampion.driverName),
-      formatPoints(realChampion.points),
-    )
+    message = t('headline.championChanges', {
+      champion: getSurname(champion.driverName),
+      championPoints: formatPoints(champion.points),
+      realChampion: getSurname(realChampion.driverName),
+      realChampionPoints: formatPoints(realChampion.points),
+    })
   } else if (champion !== null) {
-    message = strings.headline.sameChampion(
-      getSurname(champion.driverName),
-      formatPoints(champion.points),
-    )
+    message = t('headline.sameChampion', {
+      champion: getSurname(champion.driverName),
+      points: formatPoints(champion.points),
+    })
   } else {
-    message = strings.headline.noChampion
+    message = t('headline.noChampion')
   }
 
   return (
@@ -65,13 +67,13 @@ export function ChampionHeadline({
         </p>
         {activeScenarioCount > 0 && (
           <p className="mt-0.5 text-xs text-muted tabular-nums">
-            {strings.headline.activeScenarioChanges(activeScenarioCount)}
+            {t('headline.activeScenarioChanges', { count: activeScenarioCount })}
           </p>
         )}
       </div>
 
       <p className="text-xs text-muted tabular-nums">
-        {formatRulesDescription(selectedSystemId, rules)}
+        {formatRulesDescription(t, selectedSystemId, rules)}
       </p>
     </div>
   )

@@ -1,10 +1,28 @@
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import type { RaceSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 
 interface RaceResultsGridProps {
   races: readonly RaceSummary[]
   results: readonly string[]
   variant?: 'table' | 'chips'
+}
+
+function raceResultAria(
+  t: TFunction,
+  round: number,
+  code: string,
+  result: string,
+  skipped: boolean,
+): string {
+  if (skipped) {
+    return t('detail.raceResultSkippedAria', { round, code })
+  }
+  return t('detail.raceResultAria', {
+    round,
+    code,
+    result: result === '' ? t('detail.didNotTakePart') : result,
+  })
 }
 
 type ResultTone = 'win' | 'podium' | 'points' | 'other' | 'empty'
@@ -52,6 +70,8 @@ export function RaceResultsGrid({
   results,
   variant = 'table',
 }: RaceResultsGridProps) {
+  const { t } = useTranslation()
+
   if (races.length === 0) {
     return null
   }
@@ -65,7 +85,7 @@ export function RaceResultsGrid({
           const cellClass = race.skipped ? SKIPPED_CELL_CLASS : TONE_CELL_CLASSES[tone]
           const gpClass = race.skipped ? 'text-muted/60' : TONE_GP_CLASSES[tone]
           const title = race.skipped
-            ? `${race.round}. ${race.code} (${race.date}) — ${strings.detail.raceSkippedSuffix}`
+            ? `${race.round}. ${race.code} (${race.date}) — ${t('detail.raceSkippedSuffix')}`
             : `${race.round}. ${race.code} (${race.date})`
 
           return (
@@ -84,7 +104,7 @@ export function RaceResultsGrid({
                 {result === '' ? '—' : result}
               </span>
               <span className="sr-only">
-                {strings.detail.raceResultAria(race.round, race.code, result, race.skipped)}
+                {raceResultAria(t, race.round, race.code, result, race.skipped)}
               </span>
             </div>
           )
@@ -96,7 +116,7 @@ export function RaceResultsGrid({
   return (
     <div className="overflow-x-auto pb-0.5">
       <table
-        aria-label={strings.detail.raceTableAria}
+        aria-label={t('detail.raceTableAria')}
         className="w-max min-w-full border-separate border-spacing-0 text-center"
       >
         <thead>
@@ -107,7 +127,7 @@ export function RaceResultsGrid({
                 scope="col"
                 title={
                   race.skipped
-                    ? `${race.round}. ${race.code} (${race.date}) — ${strings.detail.raceSkippedSuffix}`
+                    ? `${race.round}. ${race.code} (${race.date}) — ${t('detail.raceSkippedSuffix')}`
                     : `${race.round}. ${race.code} (${race.date})`
                 }
                 className={`min-w-[38px] border-b border-border px-1 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-muted ${
@@ -135,7 +155,7 @@ export function RaceResultsGrid({
                     {result === '' ? '—' : result}
                   </span>
                   <span className="sr-only">
-                    {strings.detail.raceResultAria(race.round, race.code, result, race.skipped)}
+                    {raceResultAria(t, race.round, race.code, result, race.skipped)}
                   </span>
                 </td>
               )

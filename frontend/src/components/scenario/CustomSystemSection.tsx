@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { CustomSprintMode, CustomSystemConfig, RulesSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
-import { formatPoints } from '../../lib/format'
 import {
   createDefaultCustomConfig,
   customFromRules,
+  formatCustomPointsInput,
   validateCustomPoints,
 } from '../../lib/scenario'
 import type { Scenario } from '../../lib/scenario'
@@ -51,6 +51,7 @@ export function CustomSystemSection({
   sprintError = null,
   bestError = null,
 }: CustomSystemSectionProps) {
+  const { t } = useTranslation()
   const pointsInputId = useId()
   const pointsErrorId = useId()
   const sprintSelectId = useId()
@@ -61,7 +62,7 @@ export function CustomSystemSection({
 
   const isCustom = scenario.system === 'custom'
   const custom = scenario.custom ?? createDefaultCustomConfig()
-  const canonicalPoints = custom.racePoints.map(formatPoints).join(',')
+  const canonicalPoints = formatCustomPointsInput(custom.racePoints)
   const defaultBestCount = Math.min(11, Math.max(1, raceCount > 0 ? raceCount : 11))
   const canonicalBest = custom.bestResults !== null ? String(custom.bestResults) : ''
 
@@ -128,8 +129,12 @@ export function CustomSystemSection({
     }
   }, [clearPendingPointsDebounce])
 
-  const pointsValidation = isCustom ? validateCustomPoints(pointsDraft) : { points: null, error: null }
-  const displayedPointsError = pointsValidation.error ?? pointsError
+  const pointsValidation = isCustom
+    ? validateCustomPoints(pointsDraft)
+    : { points: null, error: null }
+  const pointsClientError =
+    pointsValidation.error !== null ? t(`validation.${pointsValidation.error}`) : null
+  const displayedPointsError = pointsClientError ?? pointsError
 
   const bestEnabled = custom.bestResults !== null
   const parsedBest = /^\d+$/.test(bestDraft.trim())
@@ -137,7 +142,7 @@ export function CustomSystemSection({
     : Number.NaN
   const bestClientError =
     bestEnabled && (!Number.isInteger(parsedBest) || parsedBest < 1 || parsedBest > 40)
-      ? strings.scenario.customBestError
+      ? t('scenario.customBestError')
       : null
   const displayedBestError = bestClientError ?? bestError
 
@@ -145,7 +150,7 @@ export function CustomSystemSection({
     clearPendingPointsDebounce()
     if (rules) {
       const fromRules = customFromRules(rules)
-      const nextPoints = fromRules.racePoints.map(formatPoints).join(',')
+      const nextPoints = formatCustomPointsInput(fromRules.racePoints)
       const nextBest = fromRules.bestResults !== null ? String(fromRules.bestResults) : ''
       setPointsDraft(nextPoints)
       setBestDraft(nextBest.length > 0 ? nextBest : String(defaultBestCount))
@@ -200,7 +205,7 @@ export function CustomSystemSection({
   return (
     <fieldset className="m-0 space-y-3 border-0 p-0">
       <legend className="mb-2 p-0 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-        {strings.scenario.customLegend}
+        {t('scenario.customLegend')}
       </legend>
 
       <button
@@ -209,7 +214,7 @@ export function CustomSystemSection({
         onClick={handleCreateFromCurrentRules}
         className="w-full cursor-pointer rounded-md border border-border bg-surface-2 px-3 py-2 text-left text-xs font-semibold text-text transition-colors hover:border-[#3d4552] hover:bg-[#222731] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {strings.scenario.createFromCurrentRules}
+        {t('scenario.createFromCurrentRules')}
       </button>
 
       {isCustom && (
@@ -219,7 +224,7 @@ export function CustomSystemSection({
               htmlFor={pointsInputId}
               className="mb-1 block text-xs font-medium text-text"
             >
-              {strings.scenario.customPointsLabel}
+              {t('scenario.customPointsLabel')}
             </label>
             <input
               id={pointsInputId}
@@ -229,7 +234,7 @@ export function CustomSystemSection({
               spellCheck={false}
               value={pointsDraft}
               onChange={(event) => handlePointsChange(event.target.value)}
-              placeholder={strings.scenario.customPointsPlaceholder}
+              placeholder={t('scenario.customPointsPlaceholder')}
               aria-invalid={displayedPointsError ? true : undefined}
               aria-describedby={displayedPointsError ? pointsErrorId : undefined}
               className={`h-8 w-full rounded-md border bg-surface px-2.5 text-xs tabular-nums text-text placeholder:text-muted/60 ${
@@ -245,7 +250,7 @@ export function CustomSystemSection({
 
           <div className="border-t border-border/70 pt-3">
             <ScenarioSwitch
-              label={strings.scenario.customFlLabel}
+              label={t('scenario.customFlLabel')}
               checked={custom.fastestLap}
               onChange={(checked) => onUpdateCustom((prev) => ({ ...prev, fastestLap: checked }))}
             />
@@ -261,7 +266,7 @@ export function CustomSystemSection({
               htmlFor={sprintSelectId}
               className="mb-1 block text-xs font-medium text-text"
             >
-              {strings.scenario.customSprintLabel}
+              {t('scenario.customSprintLabel')}
             </label>
             <select
               id={sprintSelectId}
@@ -279,13 +284,13 @@ export function CustomSystemSection({
               }`}
             >
               <option value="none" className="bg-surface text-text">
-                {strings.scenario.customSprintNone}
+                {t('scenario.customSprintNone')}
               </option>
               <option value="321" className="bg-surface text-text">
-                {strings.scenario.customSprint321}
+                {t('scenario.customSprint321')}
               </option>
               <option value="8" className="bg-surface text-text">
-                {strings.scenario.customSprint8}
+                {t('scenario.customSprint8')}
               </option>
             </select>
             {sprintError && (
@@ -308,13 +313,13 @@ export function CustomSystemSection({
                   onChange={(event) => handleBestToggle(event.target.checked)}
                   className="h-3.5 w-3.5 cursor-pointer accent-accent"
                 />
-                <span>{strings.scenario.customBestLabel}</span>
+                <span>{t('scenario.customBestLabel')}</span>
               </label>
 
               {bestEnabled && (
                 <div className="flex items-center gap-1.5">
                   <label htmlFor={bestInputId} className="sr-only">
-                    {strings.scenario.customBestNumberLabel}
+                    {t('scenario.customBestNumberLabel')}
                   </label>
                   <input
                     id={bestInputId}

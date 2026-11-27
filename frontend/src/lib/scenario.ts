@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import type {
   BuiltinSystemId,
   CustomSprintMode,
@@ -7,7 +8,8 @@ import type {
   ScenarioPayload,
   SystemId,
 } from '../api/types'
-import { formatPoints } from './format'
+import { systemContext, systemLabel } from '../i18n/system'
+import { formatPoints, formatPointsPlain } from './format'
 
 export interface Scenario {
   system: SystemId
@@ -19,9 +21,15 @@ export interface Scenario {
   custom: CustomSystemConfig | null
 }
 
+export type CustomPointsErrorKey =
+  | 'customPointsEmpty'
+  | 'customPointsTooMany'
+  | 'customPointsFormat'
+  | 'customPointsRange'
+
 export interface CustomPointsValidation {
   points: number[] | null
-  error: string | null
+  error: CustomPointsErrorKey | null
 }
 
 export const BUILTIN_SYSTEM_IDS: readonly BuiltinSystemId[] = [
@@ -70,15 +78,20 @@ export function createDefaultScenario(system: SystemId = '2010'): Scenario {
   }
 }
 
+/** Custom race points as the comma-separated list used in URLs and the input field. */
+export function formatCustomPointsInput(points: readonly number[]): string {
+  return points.map(formatPointsPlain).join(',')
+}
+
 export function validateCustomPoints(raw: string): CustomPointsValidation {
   const trimmed = raw.trim()
   if (trimmed.length === 0) {
-    return { points: null, error: 'Enter between 1 and 40 point values separated by commas.' }
+    return { points: null, error: 'customPointsEmpty' }
   }
 
   const tokens = trimmed.split(',').map((token) => token.trim())
   if (tokens.length > 40) {
-    return { points: null, error: 'Use at most 40 point positions.' }
+    return { points: null, error: 'customPointsTooMany' }
   }
 
   const points: number[] = []
@@ -86,14 +99,14 @@ export function validateCustomPoints(raw: string): CustomPointsValidation {
     if (!DECIMAL_TOKEN_RE.test(token)) {
       return {
         points: null,
-        error: 'Each point value must be a number between 0 and 1000 with at most 2 decimals.',
+        error: 'customPointsFormat',
       }
     }
     const value = Number.parseFloat(token)
     if (!Number.isFinite(value) || value < 0 || value > 1000) {
       return {
         points: null,
-        error: 'Each point value must be between 0 and 1000.',
+        error: 'customPointsRange',
       }
     }
     points.push(value)
@@ -232,7 +245,7 @@ export function scenarioToParams(scenario: Scenario): URLSearchParams {
 
   if (scenario.system === 'custom') {
     const custom = scenario.custom ?? createDefaultCustomConfig()
-    params.set('custom', custom.racePoints.map(formatPoints).join(','))
+    params.set('custom', formatCustomPointsInput(custom.racePoints))
     if (custom.fastestLap) {
       params.set('customFl', 'on')
     }
@@ -334,8 +347,15 @@ export function customFromRules(rules: RulesSummary): CustomSystemConfig {
   }
 }
 
-export function formatRulesDescription(systemId: string, rules: RulesSummary): string {
-  const prefix = systemId === 'custom' ? 'Custom' : `${systemId} rules`
+export function formatRulesDescription(
+  t: TFunction,
+  systemId: string,
+  rules: RulesSummary,
+): string {
+  const prefix = t('rules.prefix', {
+    context: systemContext(systemId),
+    system: systemLabel(t, systemId),
+  })
   const parts: string[] = [prefix]
 
   if (rules.racePoints.length > 0) {
@@ -343,23 +363,27 @@ export function formatRulesDescription(systemId: string, rules: RulesSummary): s
   }
 
   if (rules.fastestLap !== null) {
-    const pts = formatPoints(rules.fastestLap.points)
+    const points = formatPoints(rules.fastestLap.points)
     if (rules.fastestLap.maxPosition !== null && rules.fastestLap.maxPosition > 0) {
-      parts.push(`fastest lap +${pts} (top ${rules.fastestLap.maxPosition})`)
+      parts.push(t('rules.fastestLapTop', { points, max: rules.fastestLap.maxPosition }))
     } else {
-      parts.push(`fastest lap +${pts}`)
+      parts.push(t('rules.fastestLap', { points }))
     }
   }
 
   if (rules.sprintPoints.length > 0) {
-    parts.push(`sprint ${rules.sprintPoints.map(formatPoints).join('-')}`)
+    parts.push(t('rules.sprint', { points: rules.sprintPoints.map(formatPoints).join('-') }))
   }
 
   if (rules.bestResults.type === 'season') {
-    parts.push(`best ${rules.bestResults.count}`)
+    parts.push(t('rules.best', { count: rules.bestResults.count }))
   } else if (rules.bestResults.type === 'halves') {
     parts.push(
-      `best ${rules.bestResults.firstCount}/${rules.bestResults.firstHalfRaces} + ${rules.bestResults.secondCount}`,
+      t('rules.bestHalves', {
+        firstCount: rules.bestResults.firstCount,
+        firstHalfRaces: rules.bestResults.firstHalfRaces,
+        secondCount: rules.bestResults.secondCount,
+      }),
     )
   }
 

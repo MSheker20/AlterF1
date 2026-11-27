@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   CartesianGrid,
   Line,
@@ -11,7 +12,7 @@ import {
 import type { TooltipContentProps } from 'recharts'
 import type { ProgressionDriver, ProgressionResponse } from '../../api/types'
 import { useMediaQuery } from '../../hooks/useMediaQuery'
-import { strings } from '../../i18n/strings'
+import { systemContext, systemLabel } from '../../i18n/system'
 import { fallbackDriverCode, formatPoints, getSurname } from '../../lib/format'
 import {
   DEFAULT_VISIBLE_LIMIT,
@@ -44,6 +45,7 @@ export function ProgressionChart({
   isDesktop,
   scenarioKey,
 }: ProgressionChartProps) {
+  const { t } = useTranslation()
   const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
   const resetScope = `${data.season}:${data.system}:${scenarioKey}`
@@ -133,24 +135,30 @@ export function ProgressionChart({
       return null
     }
     if (data.clinch === null) {
-      return strings.progression.finalRaceSentence
+      return t('progression.finalRaceSentence')
     }
     const clincher = driverById.get(data.clinch.driverId)
     const surname = clincher ? getSurname(clincher.driverName) : data.clinch.driverId
     const racesRemaining =
       clinchIndex >= 0 ? Math.max(0, data.races.length - 1 - clinchIndex) : 0
-    return strings.progression.clinchedSentence(
-      surname,
-      data.clinch.round,
-      data.clinch.code,
-      racesRemaining,
-    )
-  }, [clinchIndex, data.clinch, data.races, driverById])
+    return racesRemaining > 0
+      ? t('progression.clinchedSentence', {
+          surname,
+          round: data.clinch.round,
+          code: data.clinch.code,
+          count: racesRemaining,
+        })
+      : t('progression.clinchedAtRound', {
+          surname,
+          round: data.clinch.round,
+          code: data.clinch.code,
+        })
+  }, [clinchIndex, data.clinch, data.races, driverById, t])
 
   if (data.races.length === 0 || data.drivers.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted">
-        {strings.progression.empty}
+        {t('progression.empty')}
       </div>
     )
   }
@@ -182,7 +190,7 @@ export function ProgressionChart({
       : 'insideTopRight'
 
   return (
-    <section aria-label={strings.progression.sectionAriaLabel} className="space-y-4">
+    <section aria-label={t('progression.sectionAriaLabel')} className="space-y-4">
       {clinchSentence !== null && (
         <p className="m-0 text-sm font-medium text-text tabular-nums">{clinchSentence}</p>
       )}
@@ -190,7 +198,7 @@ export function ProgressionChart({
       <div className="rounded-lg border border-border bg-surface p-3 sm:p-4">
         {visibleDrivers.length === 0 && (
           <p className="mb-2 text-center text-xs text-muted">
-            {strings.progression.noDriversSelected}
+            {t('progression.noDriversSelected')}
           </p>
         )}
 
@@ -255,7 +263,7 @@ export function ProgressionChart({
                 strokeDasharray="4 4"
                 strokeWidth={1.5}
                 label={{
-                  value: strings.progression.decidedLabel,
+                  value: t('progression.decidedLabel'),
                   position: clinchLabelPosition,
                   fill: '#e10600',
                   fontSize: 11,
@@ -288,13 +296,19 @@ export function ProgressionChart({
         </div>
 
         <table className="sr-only">
-          <caption>{strings.progression.srTableCaption(data.season, data.system)}</caption>
+          <caption>
+            {t('progression.srTableCaption', {
+              context: systemContext(data.system),
+              season: data.season,
+              system: systemLabel(t, data.system),
+            })}
+          </caption>
           <thead>
             <tr>
-              <th scope="col">{strings.progression.srDriverColumn}</th>
+              <th scope="col">{t('progression.srDriverColumn')}</th>
               {data.races.map((race) => (
                 <th key={race.round} scope="col">
-                  {strings.progression.tooltipRound(race.round, race.code)}
+                  {t('progression.tooltipRound', { round: race.round, code: race.code })}
                 </th>
               ))}
             </tr>
@@ -316,10 +330,10 @@ export function ProgressionChart({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
             <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-              {strings.progression.driversLabel}
+              {t('progression.driversLabel')}
             </span>
             <span className="text-xs tabular-nums text-muted">
-              {strings.progression.shownCount(visibleDrivers.length)}
+              {t('progression.shownCount', { count: visibleDrivers.length })}
             </span>
           </div>
 
@@ -329,7 +343,7 @@ export function ProgressionChart({
               onClick={handleSelectTop5}
               className="cursor-pointer rounded-md border border-border bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text transition-colors hover:border-[#3a4250]"
             >
-              {strings.progression.top5Button}
+              {t('progression.top5Button')}
             </button>
             <button
               type="button"
@@ -337,7 +351,7 @@ export function ProgressionChart({
               disabled={visibleDrivers.length === 0}
               className="cursor-pointer rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:border-[#3a4250] hover:bg-surface-2 hover:text-text disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {strings.progression.clearButton}
+              {t('progression.clearButton')}
             </button>
           </div>
         </div>
@@ -408,6 +422,7 @@ function ProgressionTooltip({
   lineStyles,
   raceCodeByRound,
 }: ProgressionTooltipProps) {
+  const { t } = useTranslation()
   const { active, payload, label } = tooltipProps
   if (!active || !payload || payload.length === 0) {
     return null
@@ -460,7 +475,7 @@ function ProgressionTooltip({
   return (
     <div className="min-w-[152px] rounded-lg border border-border bg-surface/95 px-3 py-2 text-xs shadow-xl backdrop-blur-sm">
       <p className="mb-1.5 border-b border-border/80 pb-1 text-[11px] font-bold uppercase tracking-[0.06em] tabular-nums text-muted">
-        {round !== null ? strings.progression.tooltipRound(round, raceCode) : raceCode}
+        {round !== null ? t('progression.tooltipRound', { round, code: raceCode }) : raceCode}
       </p>
       <ul className="m-0 list-none space-y-1 p-0">
         {items.map((item) => (

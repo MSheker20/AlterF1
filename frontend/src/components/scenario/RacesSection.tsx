@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
+import type { TFunction } from 'i18next'
+import { useTranslation } from 'react-i18next'
 import type { RaceSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 
 interface RacesSectionProps {
   races: readonly RaceSummary[]
@@ -9,12 +10,30 @@ interface RacesSectionProps {
   error?: string | null
 }
 
+function raceChipAria(
+  t: TFunction,
+  round: number,
+  code: string,
+  isSprint: boolean,
+  isSkipped: boolean,
+): string {
+  const parts = [t('scenario.raceChipRound', { round, code })]
+  if (isSprint) {
+    parts.push(t('scenario.raceChipSprint'))
+  }
+  if (isSkipped) {
+    parts.push(t('scenario.raceChipRemoved'))
+  }
+  return parts.join(', ')
+}
+
 export function RacesSection({
   races,
   skippedRounds,
   onToggleRace,
   error = null,
 }: RacesSectionProps) {
+  const { t } = useTranslation()
   const skippedSet = useMemo(() => new Set(skippedRounds), [skippedRounds])
 
   const remainingCount = useMemo(() => {
@@ -33,14 +52,14 @@ export function RacesSection({
     <fieldset className="m-0 border-0 p-0">
       <legend className="mb-2 flex w-full items-center justify-between gap-2 p-0">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-          {strings.scenario.racesLegend}
+          {t('scenario.racesLegend')}
         </span>
         <span
           className={`text-[11px] font-semibold tabular-nums ${
             removedCount > 0 ? 'text-accent' : 'text-muted'
           }`}
         >
-          {strings.scenario.racesRemoved(removedCount)}
+          {t('scenario.racesRemoved', { count: removedCount })}
         </span>
       </legend>
 
@@ -55,15 +74,10 @@ export function RacesSection({
               type="button"
               disabled={isLastRemaining}
               aria-pressed={isSkipped}
-              aria-label={strings.scenario.raceChipAria(
-                race.round,
-                race.code,
-                race.sprint,
-                isSkipped,
-              )}
+              aria-label={raceChipAria(t, race.round, race.code, race.sprint, isSkipped)}
               title={
                 isLastRemaining
-                  ? strings.scenario.cannotSkipAllRaces
+                  ? t('scenario.cannotSkipAllRaces')
                   : `${race.round}. ${race.code} (${race.date})`
               }
               onClick={() => onToggleRace(race.round)}
@@ -78,7 +92,7 @@ export function RacesSection({
                   aria-hidden="true"
                   className="absolute right-1 top-0.5 text-[9px] font-extrabold leading-none text-gold"
                 >
-                  {strings.scenario.racesSprintBadge}
+                  {t('scenario.racesSprintBadge')}
                 </span>
               )}
               <span

@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { motion } from 'motion/react'
 import type { RaceSummary, StandingRow } from '../../api/types'
-import { strings } from '../../i18n/strings'
+import { systemContext, systemLabel } from '../../i18n/system'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 import { RaceResultsGrid } from './RaceResultsGrid'
@@ -33,8 +34,9 @@ export function TowerRow({
   flashDirection,
   onSelect,
 }: TowerRowProps) {
+  const { t } = useTranslation()
   const color = teamColor(row.constructorId)
-  const delta = deltaLabel(row.positionChange)
+  const delta = deltaLabel(t, row.positionChange)
   const code = fallbackDriverCode(row.driverCode, row.driverName)
 
   const deltaColorClass =
@@ -117,33 +119,39 @@ export function TowerRow({
 
             <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs tabular-nums text-muted">
               <div className="flex items-baseline gap-1">
-                <dt>{strings.detail.realLabel(season)}:</dt>
+                <dt>{t('detail.realLabel', { season })}:</dt>
                 <dd className="font-semibold text-text">
                   {row.realPoints !== null ? formatPoints(row.realPoints) : '—'}{' '}
                   <span className="font-normal text-muted">
                     (
                     {row.realPosition !== null
-                      ? strings.detail.positionBadge(row.realPosition)
-                      : strings.detail.unclassified}
+                      ? t('detail.positionBadge', { position: row.realPosition })
+                      : t('detail.unclassified')}
                     )
                   </span>
                 </dd>
               </div>
               <div className="flex items-baseline gap-1">
-                <dt>{strings.detail.systemLabel(systemId)}:</dt>
+                <dt>
+                  {t('detail.systemLabel', {
+                    context: systemContext(systemId),
+                    system: systemLabel(t, systemId),
+                  })}
+                  :
+                </dt>
                 <dd className="font-semibold text-text">
                   {formatPoints(row.points)}{' '}
                   <span className="font-normal text-muted">
-                    ({strings.detail.positionBadge(row.position)})
+                    ({t('detail.positionBadge', { position: row.position })})
                   </span>
                 </dd>
               </div>
               <div className="flex items-baseline gap-1">
-                <dt>{strings.detail.winsLabel}:</dt>
+                <dt>{t('detail.winsLabel')}:</dt>
                 <dd className="font-semibold text-text">{row.wins}</dd>
               </div>
               <div className="flex items-baseline gap-1">
-                <dt>{strings.detail.podiumsLabel}:</dt>
+                <dt>{t('detail.podiumsLabel')}:</dt>
                 <dd className="font-semibold text-text">{row.podiums}</dd>
               </div>
             </dl>

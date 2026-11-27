@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import i18n from '../i18n'
 import { deltaLabel, formatPoints } from './format'
 
 describe('formatPoints', () => {
@@ -26,12 +27,12 @@ describe('formatPoints', () => {
 
 describe('deltaLabel', () => {
   it('formats positive position gains', () => {
-    expect(deltaLabel(1)).toEqual({
+    expect(deltaLabel(i18n.t, 1)).toEqual({
       text: '▲1',
       ariaLabel: 'gained 1 place',
       direction: 'up',
     })
-    expect(deltaLabel(3)).toEqual({
+    expect(deltaLabel(i18n.t, 3)).toEqual({
       text: '▲3',
       ariaLabel: 'gained 3 places',
       direction: 'up',
@@ -39,12 +40,12 @@ describe('deltaLabel', () => {
   })
 
   it('formats negative position losses', () => {
-    expect(deltaLabel(-1)).toEqual({
+    expect(deltaLabel(i18n.t, -1)).toEqual({
       text: '▼1',
       ariaLabel: 'lost 1 place',
       direction: 'down',
     })
-    expect(deltaLabel(-4)).toEqual({
+    expect(deltaLabel(i18n.t, -4)).toEqual({
       text: '▼4',
       ariaLabel: 'lost 4 places',
       direction: 'down',
@@ -52,12 +53,12 @@ describe('deltaLabel', () => {
   })
 
   it('formats unchanged and null values', () => {
-    expect(deltaLabel(0)).toEqual({
+    expect(deltaLabel(i18n.t, 0)).toEqual({
       text: '—',
       ariaLabel: 'position unchanged',
       direction: 'same',
     })
-    expect(deltaLabel(null)).toEqual({
+    expect(deltaLabel(i18n.t, null)).toEqual({
       text: '—',
       ariaLabel: 'position unchanged',
       direction: 'same',

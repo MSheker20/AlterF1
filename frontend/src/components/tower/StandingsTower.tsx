@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LayoutGroup } from 'motion/react'
 import type { RaceSummary, StandingRow } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import { TowerRow } from './TowerRow'
 
 interface StandingsTowerProps {
@@ -28,6 +28,7 @@ export function StandingsTower({
   selectedDriverId,
   onSelectRow,
 }: StandingsTowerProps) {
+  const { t } = useTranslation()
   const [showAll, setShowAll] = useState(false)
   const [flashByDriver, setFlashByDriver] = useState<Record<string, 'up' | 'down'>>({})
 
@@ -77,7 +78,7 @@ export function StandingsTower({
   if (standings.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-muted">
-        {strings.tower.empty}
+        {t('tower.empty')}
       </div>
     )
   }
@@ -91,15 +92,15 @@ export function StandingsTower({
         aria-hidden="true"
         className="grid grid-cols-[28px_4px_minmax(0,1fr)_56px_44px] items-center gap-x-2.5 border-b border-border bg-surface px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.08em] text-muted"
       >
-        <span className="text-right">{strings.tower.colPos}</span>
+        <span className="text-right">{t('tower.colPos')}</span>
         <span />
-        <span>{strings.tower.colDriver}</span>
-        <span className="text-right">{strings.tower.colPoints}</span>
-        <span className="text-right">{strings.tower.colChange}</span>
+        <span>{t('tower.colDriver')}</span>
+        <span className="text-right">{t('tower.colPoints')}</span>
+        <span className="text-right">{t('tower.colChange')}</span>
       </div>
 
       <LayoutGroup id={`standings-tower-${season}`}>
-        <ol aria-label={strings.tower.listAriaLabel} className="m-0 list-none p-0">
+        <ol aria-label={t('tower.listAriaLabel')} className="m-0 list-none p-0">
           {visibleRows.map((row) => (
             <TowerRow
               key={row.driverId}
@@ -125,8 +126,8 @@ export function StandingsTower({
             className="w-full cursor-pointer rounded-md border border-border bg-surface-2 px-3 py-2 text-xs font-semibold text-text transition-colors hover:border-[#3a4250] hover:bg-[#222731]"
           >
             {showAll
-              ? strings.tower.showTop(INITIAL_VISIBLE_ROWS)
-              : strings.tower.showAll(standings.length)}
+              ? t('tower.showTop', { limit: INITIAL_VISIBLE_ROWS })
+              : t('tower.showAll', { total: standings.length })}
           </button>
         </div>
       )}

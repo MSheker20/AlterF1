@@ -1,6 +1,6 @@
 import { useId } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { MultiplierPreset, RulesSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import type { Scenario } from '../../lib/scenario'
 
 interface ScenarioSwitchProps {
@@ -84,27 +84,27 @@ interface BonusesAndPresetSectionProps {
   presetError?: string | null
 }
 
-const PRESET_OPTIONS: readonly {
-  value: MultiplierPreset
-  label: string
-  help: string
-}[] = [
+const PRESET_OPTIONS = [
   {
     value: 'historical',
-    label: strings.scenario.presetHistorical,
-    help: strings.scenario.presetHistoricalHelp,
+    labelKey: 'scenario.presetHistorical',
+    helpKey: 'scenario.presetHistoricalHelp',
   },
   {
     value: 'pure',
-    label: strings.scenario.presetPure,
-    help: strings.scenario.presetPureHelp,
+    labelKey: 'scenario.presetPure',
+    helpKey: 'scenario.presetPureHelp',
   },
   {
     value: 'all',
-    label: strings.scenario.presetAll,
-    help: strings.scenario.presetAllHelp,
+    labelKey: 'scenario.presetAll',
+    helpKey: 'scenario.presetAllHelp',
   },
-]
+] as const satisfies readonly {
+  value: MultiplierPreset
+  labelKey: 'scenario.presetHistorical' | 'scenario.presetPure' | 'scenario.presetAll'
+  helpKey: 'scenario.presetHistoricalHelp' | 'scenario.presetPureHelp' | 'scenario.presetAllHelp'
+}[]
 
 export function BonusesAndPresetSection({
   scenario,
@@ -115,11 +115,12 @@ export function BonusesAndPresetSection({
   bonusesError = null,
   presetError = null,
 }: BonusesAndPresetSectionProps) {
+  const { t } = useTranslation()
   const flDisabled = scenario.fl && rules !== null && rules.fastestLap === null
   const flHint = flDisabled
     ? scenario.system === 'custom'
-      ? strings.scenario.noFastestLapCustomHint
-      : strings.scenario.noFastestLapHint
+      ? t('scenario.noFastestLapCustomHint')
+      : t('scenario.noFastestLapHint')
     : undefined
 
   const activePreset =
@@ -129,19 +130,19 @@ export function BonusesAndPresetSection({
     <>
       <fieldset className="m-0 space-y-2.5 border-0 p-0">
         <legend className="mb-2 p-0 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-          {strings.scenario.bonusesLegend}
+          {t('scenario.bonusesLegend')}
         </legend>
 
         <div className="space-y-3 rounded-md border border-border bg-bg p-3">
           <ScenarioSwitch
-            label={strings.scenario.scoreSprintsLabel}
+            label={t('scenario.scoreSprintsLabel')}
             checked={scenario.sprint}
             onChange={onChangeSprint}
           />
 
           <div className="border-t border-border/70 pt-3">
             <ScenarioSwitch
-              label={strings.scenario.fastestLapLabel}
+              label={t('scenario.fastestLapLabel')}
               checked={flDisabled ? false : scenario.fl}
               disabled={flDisabled}
               hint={flHint}
@@ -163,12 +164,12 @@ export function BonusesAndPresetSection({
 
       <fieldset className="m-0 space-y-2 border-0 p-0">
         <legend className="mb-2 p-0 text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-          {strings.scenario.multipliersLegend}
+          {t('scenario.multipliersLegend')}
         </legend>
 
         <div
           role="group"
-          aria-label={strings.scenario.multipliersLegend}
+          aria-label={t('scenario.multipliersLegend')}
           className="grid grid-cols-3 gap-0.5 rounded-lg border border-border bg-bg p-[3px]"
         >
           {PRESET_OPTIONS.map((option) => {
@@ -178,7 +179,7 @@ export function BonusesAndPresetSection({
                 key={option.value}
                 type="button"
                 aria-pressed={isActive}
-                title={option.help}
+                title={t(option.helpKey)}
                 onClick={() => {
                   if (!isActive) {
                     onChangePreset(option.value)
@@ -190,14 +191,14 @@ export function BonusesAndPresetSection({
                     : 'text-muted hover:text-text'
                 }`}
               >
-                {option.label}
+                {t(option.labelKey)}
               </button>
             )
           })}
         </div>
 
         <p aria-live="polite" className="m-0 text-[11px] leading-snug text-muted">
-          {activePreset.help}
+          {t(activePreset.helpKey)}
         </p>
 
         {presetError && (

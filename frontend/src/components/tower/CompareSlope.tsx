@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { StandingRow } from '../../api/types'
-import { strings } from '../../i18n/strings'
+import { systemContext, systemLabel } from '../../i18n/system'
 import { deltaLabel, fallbackDriverCode, formatPoints } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 
@@ -24,6 +25,7 @@ interface SlopeLine {
 const MAX_SLOPE_ROWS = 20
 
 export function CompareSlope({ standings, systemId, realSystem }: CompareSlopeProps) {
+  const { t } = useTranslation()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [pinnedId, setPinnedId] = useState<string | null>(null)
   const [svgSize, setSvgSize] = useState<{ width: number; height: number }>({
@@ -168,8 +170,9 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
   }, [pinnedId])
 
   const realHeaderLabel = realSystem
-    ? strings.compare.realColumnWithSystem(realSystem)
-    : strings.compare.realColumn
+    ? t('compare.realColumnWithSystem', { system: realSystem })
+    : t('compare.realColumn')
+  const altHeaderLabel = systemLabel(t, systemId)
 
   const orderedLines = useMemo(() => {
     if (!activeDriverId) {
@@ -184,20 +187,20 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
 
   return (
     <section
-      aria-label={strings.compare.sectionAriaLabel}
+      aria-label={t('compare.sectionAriaLabel')}
       className="flex flex-col overflow-hidden rounded-lg border border-border bg-bg"
     >
       <div className="grid grid-cols-[minmax(112px,138px)_1fr_minmax(112px,138px)] items-end border-b border-border bg-surface px-2.5 pt-1.5">
         <div className="flex items-center justify-between border-b-2 border-transparent px-1.5 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted">
           <span className="truncate">{realHeaderLabel}</span>
-          <span className="tabular-nums">{strings.compare.pointsColumn}</span>
+          <span className="tabular-nums">{t('compare.pointsColumn')}</span>
         </div>
         <div className="pb-2 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted">
-          {strings.compare.diffColumn}
+          {t('compare.diffColumn')}
         </div>
         <div className="flex items-center justify-between border-b-2 border-accent px-1.5 pb-1.5 text-[11px] font-extrabold uppercase tracking-[0.05em] text-text">
-          <span>{systemId}</span>
-          <span className="tabular-nums">{strings.compare.pointsColumn}</span>
+          <span>{altHeaderLabel}</span>
+          <span className="tabular-nums">{t('compare.pointsColumn')}</span>
         </div>
       </div>
 
@@ -220,7 +223,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
         >
           <div
             role="group"
-            aria-label={strings.compare.realListAria}
+            aria-label={t('compare.realListAria')}
             className="flex flex-col gap-0.5"
           >
             {leftRows.map((row) => {
@@ -242,12 +245,12 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                   }}
                   type="button"
                   aria-pressed={pinnedId === row.driverId}
-                  aria-label={strings.compare.rowAria(
-                    realHeaderLabel,
-                    posText,
-                    row.driverName,
-                    ptsText,
-                  )}
+                  aria-label={t('compare.rowAria', {
+                    side: realHeaderLabel,
+                    pos: posText,
+                    driver: row.driverName,
+                    points: ptsText,
+                  })}
                   onPointerEnter={(event) => {
                     if (event.pointerType === 'mouse') {
                       setHoveredId(row.driverId)
@@ -354,7 +357,10 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
 
           <div
             role="group"
-            aria-label={strings.compare.altListAria(systemId)}
+            aria-label={t('compare.altListAria', {
+              context: systemContext(systemId),
+              system: altHeaderLabel,
+            })}
             className="flex flex-col gap-0.5"
           >
             {rightRows.map((row) => {
@@ -375,12 +381,12 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
                   }}
                   type="button"
                   aria-pressed={pinnedId === row.driverId}
-                  aria-label={strings.compare.rowAria(
-                    systemId,
-                    String(row.position),
-                    row.driverName,
-                    ptsText,
-                  )}
+                  aria-label={t('compare.rowAria', {
+                    side: altHeaderLabel,
+                    pos: String(row.position),
+                    driver: row.driverName,
+                    points: ptsText,
+                  })}
                   onPointerEnter={(event) => {
                     if (event.pointerType === 'mouse') {
                       setHoveredId(row.driverId)
@@ -443,7 +449,7 @@ export function CompareSlope({ standings, systemId, realSystem }: CompareSlopePr
         {activeDriver ? (
           <CompareInspector row={activeDriver} systemId={systemId} />
         ) : (
-          <span className="text-[11px] text-muted">{strings.compare.inspectorHint}</span>
+          <span className="text-[11px] text-muted">{t('compare.inspectorHint')}</span>
         )}
       </div>
     </section>
@@ -456,7 +462,8 @@ interface CompareInspectorProps {
 }
 
 function CompareInspector({ row, systemId }: CompareInspectorProps) {
-  const delta = deltaLabel(row.positionChange)
+  const { t } = useTranslation()
+  const delta = deltaLabel(t, row.positionChange)
   const deltaClass =
     delta.direction === 'up'
       ? 'font-bold text-ok'
@@ -466,8 +473,8 @@ function CompareInspector({ row, systemId }: CompareInspectorProps) {
 
   const realPosLabel =
     row.realPosition !== null
-      ? strings.detail.positionBadge(row.realPosition)
-      : strings.detail.unclassified
+      ? t('detail.positionBadge', { position: row.realPosition })
+      : t('detail.unclassified')
   const realPtsLabel = row.realPoints !== null ? formatPoints(row.realPoints) : '—'
 
   return (
@@ -483,13 +490,13 @@ function CompareInspector({ row, systemId }: CompareInspectorProps) {
             {row.driverName} · {row.constructorName}
           </span>
           <span className="text-[11px] tabular-nums text-muted">
-            {strings.compare.inspectorTransition(
-              realPosLabel,
-              realPtsLabel,
-              systemId,
-              row.position,
-              formatPoints(row.points),
-            )}
+            {t('compare.inspectorTransition', {
+              realPos: realPosLabel,
+              realPts: realPtsLabel,
+              system: systemLabel(t, systemId),
+              altPos: row.position,
+              altPts: formatPoints(row.points),
+            })}
           </span>
         </div>
       </div>

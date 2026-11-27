@@ -1,5 +1,5 @@
+import { useTranslation } from 'react-i18next'
 import type { EntrantSummary, RaceSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import { fallbackDriverCode, formatPoints } from '../../lib/format'
 import { defaultSystemForYear } from '../../lib/scenario'
 import type { Scenario } from '../../lib/scenario'
@@ -38,6 +38,7 @@ export function ActiveScenarioChips({
   season,
   onChangeScenario,
 }: ActiveScenarioChipsProps) {
+  const { t } = useTranslation()
   const chips: ScenarioChip[] = []
 
   const entrantById = new Map<string, EntrantSummary>()
@@ -53,7 +54,7 @@ export function ActiveScenarioChips({
 
     chips.push({
       key: `exclude:${driverId}`,
-      label: strings.scenario.chipWithoutDriver(code),
+      label: t('scenario.chipWithoutDriver', { code }),
       onRemove: () =>
         onChangeScenario((prev) => ({
           ...prev,
@@ -73,7 +74,7 @@ export function ActiveScenarioChips({
 
     chips.push({
       key: `skip:${round}`,
-      label: strings.scenario.chipNoRace(code),
+      label: t('scenario.chipNoRace', { code }),
       onRemove: () =>
         onChangeScenario((prev) => ({
           ...prev,
@@ -85,7 +86,7 @@ export function ActiveScenarioChips({
   if (!scenario.sprint) {
     chips.push({
       key: 'sprint:off',
-      label: strings.scenario.chipSprintsOff,
+      label: t('scenario.chipSprintsOff'),
       onRemove: () => onChangeScenario((prev) => ({ ...prev, sprint: true })),
     })
   }
@@ -93,7 +94,7 @@ export function ActiveScenarioChips({
   if (!scenario.fl) {
     chips.push({
       key: 'fl:off',
-      label: strings.scenario.chipNoFastestLap,
+      label: t('scenario.chipNoFastestLap'),
       onRemove: () => onChangeScenario((prev) => ({ ...prev, fl: true })),
     })
   }
@@ -103,8 +104,8 @@ export function ActiveScenarioChips({
       key: `preset:${scenario.preset}`,
       label:
         scenario.preset === 'pure'
-          ? strings.scenario.chipPureMultipliers
-          : strings.scenario.chipAllMultipliers,
+          ? t('scenario.chipPureMultipliers')
+          : t('scenario.chipAllMultipliers'),
       onRemove: () => onChangeScenario((prev) => ({ ...prev, preset: 'historical' })),
     })
   }
@@ -112,7 +113,9 @@ export function ActiveScenarioChips({
   if (scenario.system === 'custom' && scenario.custom) {
     chips.push({
       key: 'system:custom',
-      label: strings.scenario.chipCustomPoints(formatCustomPreview(scenario.custom.racePoints)),
+      label: t('scenario.chipCustomPoints', {
+        preview: formatCustomPreview(scenario.custom.racePoints),
+      }),
       onRemove: () =>
         onChangeScenario((prev) => ({
           ...prev,
@@ -129,14 +132,14 @@ export function ActiveScenarioChips({
   return (
     <div
       role="region"
-      aria-label={strings.scenario.chipsRegionAria}
+      aria-label={t('scenario.chipsRegionAria')}
       className="flex flex-wrap items-center gap-1.5"
     >
       {chips.map((chip) => (
         <button
           key={chip.key}
           type="button"
-          aria-label={strings.scenario.chipRemoveAria(chip.label)}
+          aria-label={t('scenario.chipRemoveAria', { label: chip.label })}
           onClick={chip.onRemove}
           className="group inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text transition-colors hover:border-[#3d4552] hover:bg-surface-2"
         >

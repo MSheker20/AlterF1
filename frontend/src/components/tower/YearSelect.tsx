@@ -1,6 +1,6 @@
 import { useId } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { SeasonSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 
 interface YearSelectProps {
   seasons: readonly SeasonSummary[]
@@ -15,6 +15,7 @@ export function YearSelect({
   onChange,
   disabled = false,
 }: YearSelectProps) {
+  const { t } = useTranslation()
   const selectId = useId()
 
   const orderedYears = [...seasons].reverse().map((s) => s.year)
@@ -26,11 +27,11 @@ export function YearSelect({
   return (
     <div className="relative inline-flex items-center">
       <label htmlFor={selectId} className="sr-only">
-        {strings.controls.seasonLabel}
+        {t('controls.seasonLabel')}
       </label>
       <select
         id={selectId}
-        aria-label={strings.controls.seasonLabel}
+        aria-label={t('controls.seasonLabel')}
         value={selectedYear !== null ? String(selectedYear) : ''}
         disabled={disabled}
         onChange={(event) => {
@@ -43,7 +44,7 @@ export function YearSelect({
       >
         {selectedYear === null && (
           <option value="" disabled className="bg-surface text-muted">
-            {strings.controls.chooseSeasonPlaceholder}
+            {t('controls.chooseSeasonPlaceholder')}
           </option>
         )}
         {years.map((year) => (

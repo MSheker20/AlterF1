@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { ApiError } from '../../api/client'
-import { strings } from '../../i18n/strings'
+import { useLocalizedPath } from '../../i18n/useLocalizedPath'
 
 export const DEFAULT_SEASON_ROUTE = '/season/1988?system=1991'
 
@@ -17,6 +18,9 @@ export function ErrorPanel({
   showBackLink = false,
   onRetry,
 }: ErrorPanelProps) {
+  const { t } = useTranslation()
+  const { to } = useLocalizedPath()
+
   return (
     <div
       role="alert"
@@ -31,15 +35,15 @@ export function ErrorPanel({
             onClick={onRetry}
             className="cursor-pointer rounded-md border border-border bg-surface-2 px-3.5 py-1.5 text-xs font-semibold text-text transition-colors hover:border-[#3a4250]"
           >
-            {strings.page.retry}
+            {t('page.retry')}
           </button>
         )}
         {showBackLink && (
           <Link
-            to={DEFAULT_SEASON_ROUTE}
+            to={to(DEFAULT_SEASON_ROUTE)}
             className="inline-flex items-center rounded-md border border-border px-3.5 py-1.5 text-xs font-semibold text-text no-underline transition-colors hover:bg-surface-2"
           >
-            {strings.page.backToDefaultSeason}
+            {t('page.backToDefaultSeason')}
           </Link>
         )}
       </div>
@@ -53,6 +57,8 @@ interface QueryErrorStateProps {
 }
 
 export function QueryErrorState({ error, onRetry }: QueryErrorStateProps) {
+  const { t } = useTranslation()
+
   if (error instanceof ApiError) {
     return (
       <ErrorPanel
@@ -66,8 +72,8 @@ export function QueryErrorState({ error, onRetry }: QueryErrorStateProps) {
 
   return (
     <ErrorPanel
-      title={strings.page.genericErrorTitle}
-      detail={error instanceof Error ? error.message : strings.page.genericErrorDetail}
+      title={t('page.genericErrorTitle')}
+      detail={error instanceof Error ? error.message : t('page.genericErrorDetail')}
       onRetry={onRetry}
     />
   )
@@ -79,13 +85,14 @@ export interface StandingsErrorBannerProps {
 }
 
 export function StandingsErrorBanner({ error, onRetry }: StandingsErrorBannerProps) {
-  const title = error instanceof ApiError ? error.title : strings.page.genericErrorTitle
+  const { t } = useTranslation()
+  const title = error instanceof ApiError ? error.title : t('page.genericErrorTitle')
   const detail =
     error instanceof ApiError
       ? error.detail
       : error instanceof Error
         ? error.message
-        : strings.page.genericErrorDetail
+        : t('page.genericErrorDetail')
 
   return (
     <div
@@ -101,7 +108,7 @@ export function StandingsErrorBanner({ error, onRetry }: StandingsErrorBannerPro
         onClick={onRetry}
         className="shrink-0 cursor-pointer rounded-md border border-border bg-surface-2 px-3 py-1 text-xs font-semibold text-text transition-colors hover:border-[#3a4250]"
       >
-        {strings.page.retry}
+        {t('page.retry')}
       </button>
     </div>
   )

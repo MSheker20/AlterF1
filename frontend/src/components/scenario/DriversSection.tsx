@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { EntrantSummary } from '../../api/types'
-import { strings } from '../../i18n/strings'
 import { fallbackDriverCode } from '../../lib/format'
 import { teamColor } from '../../lib/teamColors'
 
@@ -17,6 +17,7 @@ export function DriversSection({
   onToggleDriver,
   error = null,
 }: DriversSectionProps) {
+  const { t } = useTranslation()
   const searchId = useId()
   const [query, setQuery] = useState('')
 
@@ -43,32 +44,32 @@ export function DriversSection({
     <fieldset className="m-0 border-0 p-0">
       <legend className="mb-2 flex w-full items-center justify-between gap-2 p-0">
         <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted">
-          {strings.scenario.driversLegend}
+          {t('scenario.driversLegend')}
         </span>
         <span
           className={`text-[11px] font-semibold tabular-nums ${
             removedCount > 0 ? 'text-accent' : 'text-muted'
           }`}
         >
-          {strings.scenario.driversRemoved(removedCount)}
+          {t('scenario.driversRemoved', { count: removedCount })}
         </span>
       </legend>
 
       <label htmlFor={searchId} className="sr-only">
-        {strings.scenario.driversSearchLabel}
+        {t('scenario.driversSearchLabel')}
       </label>
       <input
         id={searchId}
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={strings.scenario.driversSearchPlaceholder}
+        placeholder={t('scenario.driversSearchPlaceholder')}
         className="mb-2 h-8 w-full rounded-md border border-border bg-bg px-2.5 text-xs text-text placeholder:text-muted/70 focus:border-[#3d4552]"
       />
 
       {filteredEntrants.length === 0 ? (
         <p className="m-0 rounded-md border border-border bg-bg px-3 py-3 text-center text-xs text-muted">
-          {strings.scenario.driversEmpty}
+          {t('scenario.driversEmpty')}
         </p>
       ) : (
         <div className="max-h-48 overflow-y-auto rounded-md border border-border bg-bg p-1">

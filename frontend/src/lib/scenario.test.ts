@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RulesSummary } from '../api/types'
+import i18n from '../i18n'
 import {
   countActive,
   countActivePayload,
@@ -155,11 +156,14 @@ describe('scenario URL state', () => {
       points: [25, 18, 15.5],
       error: null,
     })
-    expect(validateCustomPoints('').points).toBeNull()
-    expect(validateCustomPoints('25,abc').points).toBeNull()
-    expect(validateCustomPoints('25,18.123').points).toBeNull()
-    expect(validateCustomPoints('1001').points).toBeNull()
-    expect(validateCustomPoints(Array.from({ length: 41 }, () => '1').join(',')).points).toBeNull()
+    expect(validateCustomPoints('')).toEqual({ points: null, error: 'customPointsEmpty' })
+    expect(validateCustomPoints('25,abc')).toEqual({ points: null, error: 'customPointsFormat' })
+    expect(validateCustomPoints('25,18.123')).toEqual({ points: null, error: 'customPointsFormat' })
+    expect(validateCustomPoints('1001')).toEqual({ points: null, error: 'customPointsRange' })
+    expect(validateCustomPoints(Array.from({ length: 41 }, () => '1').join(','))).toEqual({
+      points: null,
+      error: 'customPointsTooMany',
+    })
   })
 
   it('copies current rules into custom config and formats rule descriptions', () => {
@@ -177,11 +181,11 @@ describe('scenario URL state', () => {
       bestResults: 11,
     })
 
-    expect(formatRulesDescription('custom', rules)).toBe(
+    expect(formatRulesDescription(i18n.t, 'custom', rules)).toBe(
       'Custom · 25-18-15 · fastest lap +1 (top 10) · sprint 3-2-1 · best 11',
     )
     expect(
-      formatRulesDescription('1991', {
+      formatRulesDescription(i18n.t, '1991', {
         racePoints: [10, 6, 4, 3, 2, 1],
         sprintPoints: [],
         fastestLap: null,

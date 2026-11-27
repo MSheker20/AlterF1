@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MotionConfig } from 'motion/react'
 import { BrowserRouter } from 'react-router'
 import './index.css'
+import './i18n'
 import App from './App.tsx'
 
 const queryClient = new QueryClient({
