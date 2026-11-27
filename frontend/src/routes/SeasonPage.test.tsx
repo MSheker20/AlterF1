@@ -85,6 +85,7 @@ const STANDINGS_1988_1991: StandingsResponse = {
   champion: { driverId: 'alain-prost', driverName: 'Alain Prost', points: 112.0 },
   realChampion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
   championChanged: true,
+  notes: [],
   standings: [
     {
       position: 1,
@@ -146,6 +147,7 @@ const STANDINGS_1988_1961: StandingsResponse = {
   champion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
   realChampion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90.0 },
   championChanged: false,
+  notes: [],
   standings: [
     {
       ...STANDINGS_1988_1991.standings[1],
@@ -221,6 +223,7 @@ const STANDINGS_2023_WITHOUT_VER: StandingsResponse = {
   champion: { driverId: 'sergio-perez', driverName: 'Sergio Perez', points: 118.0 },
   realChampion: { driverId: 'max-verstappen', driverName: 'Max Verstappen', points: 575.0 },
   championChanged: true,
+  notes: [],
   standings: [
     {
       position: 1,
@@ -252,6 +255,7 @@ const STANDINGS_2023_FULL: StandingsResponse = {
   })),
   champion: { driverId: 'max-verstappen', driverName: 'Max Verstappen', points: 210.0 },
   championChanged: false,
+  notes: [],
   standings: [
     {
       position: 1,

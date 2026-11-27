@@ -41,6 +41,7 @@ import com.msheker.alterf1.core.Scenario;
 import com.msheker.alterf1.core.ScoringOptions;
 import com.msheker.alterf1.core.ScoringRules;
 import com.msheker.alterf1.core.ScoringSystem;
+import com.msheker.alterf1.core.SeasonNote;
 import com.msheker.alterf1.core.StandingsEngine;
 import com.msheker.alterf1.data.RealStanding;
 import com.msheker.alterf1.data.SeasonChampion;
@@ -105,6 +106,10 @@ public class StandingsService {
             throw new BadRequestException("Nothing left to score in %d with this scenario.".formatted(year));
         }
 
+        Set<SeasonNote> notes = custom != null
+                ? engine.notes(results, rules, options, scenario)
+                : engine.notes(results, system, options, scenario);
+
         List<RaceInfo> races = races(results, skipped);
         Map<String, RealStanding> real = realStandings(year);
         Map<String, List<String>> resultsByDriver = resultsByDriver(results, races, scenario);
@@ -144,7 +149,8 @@ public class StandingsService {
 
         return new StandingsResponse(year, query.isCustom() ? StandingsQuery.CUSTOM : system.id(),
                 ScoringSystem.historicalFor(year).id(), query.presetValue().id(), scenarioInfo, rulesInfo(rules),
-                races, entrants(results, real, excluded), champion, realChampion, changed, lines);
+                races, entrants(results, real, excluded), champion, realChampion, changed,
+                notes.stream().sorted().map(SeasonNote::id).toList(), lines);
     }
 
     /** The same season and scenario under every historical system (and the custom one, if given). */
@@ -270,7 +276,7 @@ public class StandingsService {
      * Drivers tied on points and countback share P1. If the real champion is among them,
      * name him and do not claim the title changed.
      */
-    private static Champion champion(List<DriverStanding> computed, Champion realChampion) {
+    static Champion champion(List<DriverStanding> computed, Champion realChampion) {
         List<DriverStanding> leaders = computed.stream().filter(s -> s.position() == 1).toList();
         DriverStanding top = realChampion == null ? leaders.getFirst()
                 : leaders.stream().filter(s -> s.driverId().equals(realChampion.driverId())).findFirst()

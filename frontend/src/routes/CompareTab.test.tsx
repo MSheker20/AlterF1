@@ -74,6 +74,7 @@ const STANDINGS_1988_1991: StandingsResponse = {
   champion: { driverId: 'alain-prost', driverName: 'Alain Prost', points: 112 },
   realChampion: { driverId: 'ayrton-senna', driverName: 'Ayrton Senna', points: 90 },
   championChanged: true,
+  notes: [],
   standings: [],
 }
 

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,7 +76,7 @@ public final class StandingsEngine {
 
     /** Everything scored for a season, before ranking: per-driver race and sprint scores per round. */
     private record Scored(Map<String, Driver> drivers, List<Integer> allRaceRounds, List<Integer> raceRounds,
-            Map<Integer, BigDecimal> multipliers, Set<Integer> sprintRounds) {
+            Map<Integer, BigDecimal> multipliers, Set<Integer> sprintRounds, Set<SeasonNote> notes) {
     }
 
     private Scored score(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
@@ -91,12 +92,18 @@ public final class StandingsEngine {
                 .filter(r -> r.session() == Session.RACE && raceRounds.contains(r.round()))
                 .collect(Collectors.groupingBy(SessionResult::round, TreeMap::new, Collectors.toList()));
         Map<Integer, BigDecimal> multipliers = new HashMap<>();
+        Set<SeasonNote> notes = EnumSet.noneOf(SeasonNote.class);
         racesByRound.forEach((round, rows) -> {
             // What really happened is read from the full, unchanged race; the scenario comes after.
             RaceFacts facts = RaceFacts.derive(rows, realRules);
             BigDecimal multiplier = applicableMultiplier(facts.multiplier, options, ownSystem);
             multipliers.put(round, multiplier);
-            scoreRace(rows, rules, facts, multiplier, options, drivers, scenario);
+            if (multiplier.compareTo(BigDecimal.ONE) < 0) {
+                notes.add(SeasonNote.HALF_POINTS);
+            } else if (multiplier.compareTo(BigDecimal.ONE) > 0) {
+                notes.add(SeasonNote.DOUBLE_POINTS);
+            }
+            scoreRace(rows, rules, facts, multiplier, options, drivers, scenario, notes);
         });
 
         Set<Integer> sprintRounds = new java.util.HashSet<>();
@@ -118,7 +125,39 @@ public final class StandingsEngine {
                         }
                     });
         }
-        return new Scored(drivers, allRaceRounds, raceRounds, multipliers, sprintRounds);
+        return new Scored(drivers, allRaceRounds, raceRounds, multipliers, sprintRounds, notes);
+    }
+
+    // ---- season notes -------------------------------------------------------------------------
+
+    /** What explains unusual points in this season under a historical system (PLAN.md §7). */
+    public Set<SeasonNote> notes(List<SessionResult> season, ScoringSystem system, ScoringOptions options,
+            Scenario scenario) {
+        if (season.isEmpty()) {
+            return Set.of();
+        }
+        int year = season.getFirst().year();
+        ScoringRules rules = rulesFor(season, system, options, scenario);
+        Scored scored = score(season, rules, options, system == ScoringSystem.historicalFor(year), scenario);
+        Set<SeasonNote> notes = EnumSet.noneOf(SeasonNote.class);
+        notes.addAll(scored.notes());
+        // Only the 2010 system has real sprint tables; the others use the 3-2-1 assumption.
+        if (system != ScoringSystem.S2010 && !scored.sprintRounds().isEmpty() && rules.sprintPointsFor(1).signum() > 0) {
+            notes.add(SeasonNote.SPRINT_ASSUMED);
+        }
+        if (!system.covers(year) && rules.bestResults() instanceof Season) {
+            notes.add(SeasonNote.BEST_SCALED);
+        }
+        return Set.copyOf(notes);
+    }
+
+    /** What explains unusual points in this season under arbitrary (user-defined) rules. */
+    public Set<SeasonNote> notes(List<SessionResult> season, ScoringRules rules, ScoringOptions options,
+            Scenario scenario) {
+        if (season.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(score(season, rules, options, false, scenario).notes());
     }
 
     // ---- progression and clinch --------------------------------------------------------------
@@ -303,7 +342,7 @@ public final class StandingsEngine {
     // ---- race scoring -------------------------------------------------------------------
 
     private void scoreRace(List<SessionResult> allRows, ScoringRules rules, RaceFacts facts, BigDecimal multiplier,
-            ScoringOptions options, Map<String, Driver> drivers, Scenario scenario) {
+            ScoringOptions options, Map<String, Driver> drivers, Scenario scenario, Set<SeasonNote> notes) {
         List<SessionResult> rows = allRows.stream().filter(r -> !scenario.excludes(r.driverId())).toList();
         Map<Integer, Integer> positions = renumber(allRows, scenario);
         Map<Integer, Integer> scoringPositions = scoringPositions(rows, positions, facts);
@@ -330,6 +369,7 @@ public final class StandingsEngine {
             Driver driver = driver(drivers, row);
             driver.constructors.merge(row.constructorId(), 1, Integer::sum);
             if (facts.ineligible(row)) {
+                notes.add(SeasonNote.INELIGIBLE);
                 driver.raceScores.merge(row.round(), BigDecimal.ZERO, BigDecimal::add);
                 continue;
             }
@@ -352,7 +392,11 @@ public final class StandingsEngine {
                         share = BigDecimal.ONE.divide(BigDecimal.valueOf(sharing), SCALE, RoundingMode.HALF_EVEN);
                     }
                 }
-                score = score.add(rules.racePointsFor(scoringPositions.get(row.positionDisplayOrder())).multiply(share));
+                BigDecimal positionPoints = rules.racePointsFor(scoringPositions.get(row.positionDisplayOrder()));
+                if (share.compareTo(BigDecimal.ONE) < 0 && share.signum() > 0 && positionPoints.signum() > 0) {
+                    notes.add(SeasonNote.SHARED_POINTS);
+                }
+                score = score.add(positionPoints.multiply(share));
             }
             boolean transferred = transferredFastestLap.contains(row.positionDisplayOrder());
             if (fastestLap != null && (row.fastestLap() || transferred) && fastestLap.eligible(position)) {
@@ -362,6 +406,9 @@ public final class StandingsEngine {
                     share = fastestLap.splitWhenShared() && fastestLapCount > 1
                             ? BigDecimal.ONE.divide(BigDecimal.valueOf(fastestLapCount), SCALE, RoundingMode.HALF_EVEN)
                             : BigDecimal.ONE;
+                }
+                if (share.compareTo(BigDecimal.ONE) < 0 && share.signum() > 0) {
+                    notes.add(SeasonNote.SHARED_POINTS);
                 }
                 score = score.add(fastestLap.points().multiply(share));
             }

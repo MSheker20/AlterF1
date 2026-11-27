@@ -8,6 +8,7 @@ export const strings = {
     notFoundTitle: 'Page not found',
     notFoundDetail: 'The page you requested does not exist.',
     backToDefaultSeason: 'Go to 1988 season',
+    backHome: 'Back to home',
     retry: 'Try again',
     genericErrorTitle: 'Could not load standings',
     genericErrorDetail: 'An unexpected error occurred while fetching season data.',
@@ -225,6 +226,23 @@ export const strings = {
     chipAllMultipliers: 'All multipliers',
     chipCustomPoints: (preview: string) => `Custom: ${preview}`,
     chipRemoveAria: (label: string) => `${label} — remove`,
+  },
+  home: {
+    title: 'Same races. Different rules.',
+    titleAccent: 'A different champion.',
+    intro:
+      'AlterF1 replays every Formula 1 season since 1950 under five historical points systems.',
+    countLine: (count: number) =>
+      `In ${count} seasons, another system crowns someone else.`,
+    cardsHeading: 'Seasons where the champion changes',
+    realLine: (name: string, system: string) => `Real champion: ${name} (${system} rules)`,
+    underRules: (system: string) => `${system} rules`,
+    alternativeAria: (year: number, system: string, winner: string, real: string) =>
+      `${year} under ${system} rules: ${winner} instead of ${real}`,
+    realFinish: (surname: string, position: number) => `${surname} P${position}`,
+    pickerHeading: 'Or open any season',
+    pickerHint: 'Pick a year to see its standings under every system.',
+    loadError: 'Could not load the highlights.',
   },
   footer: {
     dataPrefix: 'Data: ',

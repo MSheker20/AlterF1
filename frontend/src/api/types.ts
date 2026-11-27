@@ -105,7 +105,35 @@ export interface StandingsResponse {
   champion: ChampionSummary | null
   realChampion: ChampionSummary | null
   championChanged: boolean
+  /** Why points may look unusual this season (PLAN.md §7); empty when nothing applies. */
+  notes: SeasonNote[]
   standings: StandingRow[]
+}
+
+export type SeasonNote =
+  | 'half-points'
+  | 'double-points'
+  | 'shared-points'
+  | 'sprint-assumed'
+  | 'best-scaled'
+  | 'ineligible'
+
+export interface HighlightAlternative {
+  system: string
+  champion: ChampionSummary
+  championConstructorId: string
+  /** Where the real champion finishes under this system. */
+  realChampionPosition: number
+  realChampionPoints: number
+}
+
+/** A season whose champion changes under another points system (home page card). */
+export interface Highlight {
+  season: number
+  realSystem: string
+  realChampion: ChampionSummary
+  realChampionConstructorId: string | null
+  alternatives: HighlightAlternative[]
 }
 
 export interface CompareSystemSummary {

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.msheker.alterf1.api.StandingsDtos.CompareResponse;
+import com.msheker.alterf1.api.StandingsDtos.Highlight;
 import com.msheker.alterf1.api.StandingsDtos.ProgressionResponse;
 import com.msheker.alterf1.api.StandingsDtos.SeasonSummary;
 import com.msheker.alterf1.api.StandingsDtos.StandingsResponse;
@@ -19,9 +20,17 @@ import com.msheker.alterf1.api.StandingsDtos.SystemInfo;
 public class StandingsController {
 
     private final StandingsService service;
+    private final HighlightsService highlights;
 
-    public StandingsController(StandingsService service) {
+    public StandingsController(StandingsService service, HighlightsService highlights) {
         this.service = service;
+        this.highlights = highlights;
+    }
+
+    /** Seasons whose champion changes under another points system, oldest first (home page). */
+    @GetMapping("/highlights")
+    public List<Highlight> highlights() {
+        return highlights.highlights();
     }
 
     /** Every season with its real champion, oldest first. */

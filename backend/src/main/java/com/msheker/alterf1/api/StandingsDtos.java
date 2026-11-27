@@ -127,6 +127,22 @@ public final class StandingsDtos {
             Champion champion,
             Champion realChampion,
             boolean championChanged,
+            /** Why points may look unusual this season: "half-points", "shared-points", ... (PLAN.md §7). */
+            List<String> notes,
             List<StandingLine> standings) {
+    }
+
+    // ---- highlights: seasons whose champion changes under another system (home page) ----
+
+    /**
+     * @param realChampionPosition where the real champion finishes under {@code system}
+     * @param realChampionPoints   the real champion's points under {@code system}
+     */
+    public record HighlightAlternative(String system, Champion champion, String championConstructorId,
+            int realChampionPosition, BigDecimal realChampionPoints) {
+    }
+
+    public record Highlight(int season, String realSystem, Champion realChampion,
+            String realChampionConstructorId, List<HighlightAlternative> alternatives) {
     }
 }

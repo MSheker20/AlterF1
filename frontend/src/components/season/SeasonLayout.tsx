@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
+import { NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { ApiError } from '../../api/client'
 import { useSeasons, useStandings, useSystems } from '../../api/standings'
 import type { StandingsResponse, SystemId } from '../../api/types'
@@ -19,14 +19,14 @@ import {
   scenarioToParams,
 } from '../../lib/scenario'
 import type { Scenario } from '../../lib/scenario'
-import { HealthBadge } from '../HealthBadge'
+import { BrandLink, SiteFooter } from '../layout/SiteChrome'
 import { ActiveScenarioChips } from '../scenario/ActiveScenarioChips'
 import { ScenarioPanel } from '../scenario/ScenarioPanel'
 import type { ScenarioInlineErrors } from '../scenario/ScenarioPanel'
 import { ChampionHeadline } from '../tower/ChampionHeadline'
 import { SystemPicker } from '../tower/SystemPicker'
 import { YearSelect } from '../tower/YearSelect'
-import { DEFAULT_SEASON_ROUTE, ErrorPanel } from './ErrorPanel'
+import { ErrorPanel } from './ErrorPanel'
 import { SeasonLayoutContext } from './seasonLayoutContext'
 import type { SeasonLayoutContextValue } from './seasonLayoutContext'
 
@@ -271,13 +271,7 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
     <div className="flex min-h-dvh flex-col bg-bg text-text">
       <header className="sticky top-0 z-30 border-b border-border bg-bg/95 backdrop-blur-sm">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-4 py-3 sm:px-6">
-          <Link
-            to={DEFAULT_SEASON_ROUTE}
-            className="inline-flex items-center gap-2.5 text-base font-bold tracking-tight text-text no-underline transition-opacity hover:opacity-90"
-          >
-            <span aria-hidden="true" className="h-5 w-1 rounded-[2px] bg-accent" />
-            <span>{strings.brand}</span>
-          </Link>
+          <BrandLink />
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
             <YearSelect
@@ -422,23 +416,7 @@ export function SeasonLayout({ children }: SeasonLayoutProps) {
         )}
       </main>
 
-      <footer className="mt-8 border-t border-border">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-muted sm:px-6">
-          <p className="m-0">
-            {strings.footer.dataPrefix}
-            <a
-              href="https://github.com/f1db/f1db"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline decoration-border underline-offset-4 transition-colors hover:text-text"
-            >
-              {strings.footer.f1dbName}
-            </a>
-            {strings.footer.licenseSuffix}
-          </p>
-          <HealthBadge />
-        </div>
-      </footer>
+      <SiteFooter className="mt-8" />
     </div>
   )
 }
